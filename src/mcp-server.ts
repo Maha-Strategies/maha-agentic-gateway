@@ -1,6 +1,8 @@
 import express from "express";
 import path from 'path';
 import cors from "cors";
+import { createServer } from "http";
+import { Server as SocketServer } from "socket.io";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { fileURLToPath } from 'url';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
@@ -14,11 +16,17 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+const httpServer = createServer(app);
+const io = new SocketServer(httpServer, {
+  cors: {
+    origin: "*", // Replace with "https://maha-os.com" for production security
+    methods: ["GET", "POST"]
+  }
+});
 
-
-// Allow external agents to connect securely
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
+
 // Initialize the MCP Server
 const server = new Server(
   {
@@ -33,8 +41,13 @@ const server = new Server(
   }
 );
 
+// Handle WebSocket connections
+io.on("connection", (socket) => {
+  console.log("🔌 Dashboard connected to WebSocket relay");
+});
+
 // ==========================================
-// 1. DEFINE RESOURCES (Data agents can read)
+// 1. RESOURCES
 // ==========================================
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
   return {
@@ -51,8 +64,6 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   if (request.params.uri === "maha://telemetry/current") {
-    // In production, this would securely fetch the user's encrypted state
-    // relayed from their mobile device to your database based on their auth token.
     const currentState = {
       decisionVelocity: 8,
       rhr: 58,
@@ -72,7 +83,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 });
 
 // ==========================================
-// 2. DEFINE TOOLS (Actions agents can take)
+// 2. TOOLS (Consolidated)
 // ==========================================
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
@@ -99,14 +110,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "trigger_circuit_breaker") {
     const severity = request.params.arguments?.severity;
     
-    // In production, this would send a push notification or WebSocket message
-    // to the user's specific device to lock the UI and start the audit.
-    console.log(`[AGENT ACTION] Executing circuit breaker at ${severity} severity.`);
+    // 📢 RELAY TO DASHBOARD
+    io.emit("intervention", {
+      type: "CIRCUIT_BREAKER",
+      severity: severity,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`[RELAY]: Agent triggered ${severity} circuit breaker.`);
 
     return {
       content: [{
         type: "text",
-        text: `Circuit breaker activated successfully at ${severity} severity. User UI locked for kinetic calibration.`
+        text: `Circuit breaker activated successfully at ${severity} severity. Intervention sent to dashboard.`
       }]
     };
   }
@@ -114,31 +130,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 // ==========================================
-// 3. TRANSPORT LAYER (SSE Integration)
+// 3. TRANSPORT LAYER (SSE)
 // ==========================================
-
 let transport: SSEServerTransport | null = null;
 
-// Endpoint for agents to open the connection stream
 app.get("/mcp/sse", async (req, res) => {
   transport = new SSEServerTransport("/mcp/messages", res);
   await server.connect(transport);
-  console.log("New AI agent connected to gateway via SSE");
+  console.log("New AI agent connected via SSE");
 });
 
-// Endpoint for agents to send messages/tool calls
 app.post("/mcp/messages", async (req, res) => {
-  if (!transport) {
-    return res.status(400).send("No active SSE connection. Connect to /mcp/sse first.");
-  }
+  if (!transport) return res.status(400).send("No active SSE connection.");
   await transport.handlePostMessage(req, res);
 });
 
 // ==========================================
-// 4. START SERVER
+// 4. THE START COMMAND (Merged)
 // ==========================================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Maha OS Agentic Gateway running on port ${PORT}`);
-  console.log(`SSE Endpoint ready at http://localhost:${PORT}/mcp/sse`);
+httpServer.listen(PORT, () => {
+  console.log(`Maha OS Gateway + WebSocket Relay active on port ${PORT}`);
+  console.log(`Manifest live at http://localhost:${PORT}/llms.txt`);
 });
