@@ -1,16 +1,13 @@
 {
   "name": "maha-agentic-gateway",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
+  "main": "dist/mcp-server.js",
   "scripts": {
-  "build": "tsc",
-  "start": "node dist/mcp-server.js",
-  "dev": "ts-node src/mcp-server.ts"
+    "build": "tsc",
+    "start": "node dist/mcp-server.js",
+    "dev": "node --loader ts-node/esm src/mcp-server.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "cors": "^2.8.6",
