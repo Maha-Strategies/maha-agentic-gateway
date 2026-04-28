@@ -1,6 +1,8 @@
 import express from "express";
+import path from 'path';
 import cors from "cors";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { fileURLToPath } from 'url';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   ListResourcesRequestSchema,
@@ -9,11 +11,14 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const app = express();
+
 
 // Allow external agents to connect securely
 app.use(cors());
-
+app.use(express.static(path.join(__dirname, '../public')));
 // Initialize the MCP Server
 const server = new Server(
   {
