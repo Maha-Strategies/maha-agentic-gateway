@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import path from 'path';
 import cors from "cors";
 import { createServer } from "http";
@@ -19,7 +19,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new SocketServer(httpServer, {
   cors: {
-    origin: "*", // Replace with "https://maha-os.com" for production security
+    origin: "*", 
     methods: ["GET", "POST"]
   }
 });
@@ -27,19 +27,34 @@ const io = new SocketServer(httpServer, {
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Initialize the MCP Server
-const server = new Server(
-  {
-    name: "Maha-OS-Agentic-Gateway",
-    version: "1.0.0",
-  },
-  {
-    capabilities: {
-      resources: {},
-      tools: {},
-    },
-  }
-);
+// ==========================================
+// 1. AUTHENTICATION MIDDLEWARE
+// ==========================================
+const AUTHORIZED_TOKEN = process.env.MAHA_AGENT_TOKEN || 'sk-maha-test-token-77x9';
+
+const verifyAgentToken = (req: Request, res: Response, next: NextFunction): void => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ 
+            error: 'Unauthorized', 
+            message: 'Maha OS requires a valid Bearer token for access.' 
+        });
+        return;
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    if (token !== AUTHORIZED_TOKEN) {
+        res.status(403).json({ 
+            error: 'Forbidden', 
+            message: 'Invalid agent-token. Connection dropped.' 
+        });
+        return;
+    }
+
+    next();
+};
 
 // Handle WebSocket connections
 io.on("connection", (socket) => {
@@ -47,106 +62,110 @@ io.on("connection", (socket) => {
 });
 
 // ==========================================
-// 1. RESOURCES
+// 2. MCP SERVER FACTORY (Fixes the 500 Error)
 // ==========================================
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  return {
-    resources: [
-      {
-        uri: "maha://telemetry/current",
-        name: "Current Biometric Telemetry",
-        mimeType: "application/json",
-        description: "Real-time baseline including Decision Velocity, RHR, and HRV.",
+// We wrap the server generation in a function so every new SSE connection gets a fresh instance.
+function createMahaServer() {
+  const server = new Server(
+    { name: "Maha-OS-Agentic-Gateway", version: "1.0.0" },
+    { capabilities: { resources: {}, tools: {} } }
+  );
+
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+    resources: [{
+      uri: "maha://telemetry/current",
+      name: "Current Biometric Telemetry",
+      mimeType: "application/json",
+      description: "Real-time baseline including Decision Velocity, RHR, and HRV.",
+    }]
+  }));
+
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    if (request.params.uri === "maha://telemetry/current") {
+      return {
+        contents: [{
+          uri: request.params.uri,
+          mimeType: "application/json",
+          text: JSON.stringify({ decisionVelocity: 8, rhr: 58, hrv: 65, systemicReadiness: 82 })
+        }]
+      };
+    }
+    throw new Error("Resource not found");
+  });
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [{
+      name: "trigger_circuit_breaker",
+      description: "Activates the cognitive defense protocol, dimming the screen.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          severity: { type: "string", description: "Level of fatigue: 'mild', 'moderate', or 'critical'" }
+        },
+        required: ["severity"]
       }
-    ]
-  };
-});
+    }]
+  }));
 
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  if (request.params.uri === "maha://telemetry/current") {
-    const currentState = {
-      decisionVelocity: 8,
-      rhr: 58,
-      hrv: 65,
-      systemicReadiness: 82
-    };
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    if (request.params.name === "trigger_circuit_breaker") {
+      const severity = request.params.arguments?.severity as string;
+      
+      io.emit("intervention", {
+        type: "CIRCUIT_BREAKER",
+        severity: severity,
+        timestamp: new Date().toISOString()
+      });
 
-    return {
-      contents: [{
-        uri: request.params.uri,
-        mimeType: "application/json",
-        text: JSON.stringify(currentState)
-      }]
-    };
-  }
-  throw new Error("Resource not found");
-});
+      console.log(`[RELAY]: Agent triggered ${severity} circuit breaker.`);
+      return {
+        content: [{
+          type: "text",
+          text: `Circuit breaker activated successfully at ${severity} severity.`
+        }]
+      };
+    }
+    throw new Error("Tool not found");
+  });
 
-// ==========================================
-// 2. TOOLS (Consolidated)
-// ==========================================
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "trigger_circuit_breaker",
-        description: "Activates the cognitive defense protocol, dimming the screen and initiating a mandatory kinetic audit.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            severity: {
-              type: "string",
-              description: "Level of fatigue detected: 'mild', 'moderate', or 'critical'"
-            }
-          },
-          required: ["severity"]
-        }
-      }
-    ]
-  };
-});
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "trigger_circuit_breaker") {
-    const severity = request.params.arguments?.severity;
-    
-    // 📢 RELAY TO DASHBOARD
-    io.emit("intervention", {
-      type: "CIRCUIT_BREAKER",
-      severity: severity,
-      timestamp: new Date().toISOString()
-    });
-
-    console.log(`[RELAY]: Agent triggered ${severity} circuit breaker.`);
-
-    return {
-      content: [{
-        type: "text",
-        text: `Circuit breaker activated successfully at ${severity} severity. Intervention sent to dashboard.`
-      }]
-    };
-  }
-  throw new Error("Tool not found");
-});
+  return server;
+}
 
 // ==========================================
 // 3. TRANSPORT LAYER (SSE)
 // ==========================================
-let transport: SSEServerTransport | null = null;
+let activeTransport: SSEServerTransport | null = null;
+let activeServer: Server | null = null;
 
-app.get("/mcp/sse", async (req, res) => {
-  transport = new SSEServerTransport("/mcp/messages", res);
-  await server.connect(transport);
-  console.log("New AI agent connected via SSE");
+app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
+  try {
+    // Gracefully close any existing connection before opening a new one
+    if (activeServer) {
+      try { await activeServer.close(); } catch (e) {}
+    }
+    
+    // Create a fresh server instance and attach the transport
+    activeServer = createMahaServer();
+    activeTransport = new SSEServerTransport("/mcp/messages", res);
+    await activeServer.connect(activeTransport);
+    
+    console.log("New AI agent securely connected via SSE");
+  } catch (error) {
+    console.error("SSE Connection Error:", error);
+    res.status(500).send("Internal Server Error during SSE setup.");
+  }
 });
 
-app.post("/mcp/messages", async (req, res) => {
-  if (!transport) return res.status(400).send("No active SSE connection.");
-  await transport.handlePostMessage(req, res);
+app.post("/mcp/messages", verifyAgentToken, async (req: Request, res: Response) => {
+  if (!activeTransport) {
+      res.status(400).send("No active SSE connection.");
+      return;
+  }
+  await activeTransport.handlePostMessage(req, res);
 });
 
 // ==========================================
-// 4. THE START COMMAND (Merged)
+// 4. THE START COMMAND
 // ==========================================
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
