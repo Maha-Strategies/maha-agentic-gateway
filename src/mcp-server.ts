@@ -165,6 +165,35 @@ app.post("/mcp/messages", verifyAgentToken, async (req: Request, res: Response) 
 });
 
 // ==========================================
+// 5. REST API FOR CUSTOM GPT (OPENAI)
+// ==========================================
+// We add express.json() here specifically to parse the payload from OpenAI
+app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res: Response): void => {
+  try {
+    const severity = req.body.severity || "moderate";
+
+    // Broadcast the intervention down to the client via WebSocket
+    io.emit("intervention", {
+      type: "CIRCUIT_BREAKER",
+      severity: severity,
+      timestamp: new Date().toISOString(),
+      source: "OpenAI_Custom_GPT"
+    });
+
+    console.log(`[REST API]: Custom GPT triggered ${severity} circuit breaker.`);
+
+    res.status(200).json({
+      success: true,
+      message: `Circuit breaker activated successfully at ${severity} severity.`,
+      action_taken: "SCREEN_DIMMED"
+    });
+  } catch (error) {
+    console.error("Error triggering REST intervention:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ==========================================
 // 4. THE START COMMAND
 // ==========================================
 const PORT = process.env.PORT || 3000;
