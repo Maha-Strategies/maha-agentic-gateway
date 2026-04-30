@@ -86,7 +86,7 @@ function createMahaServer() {
         contents: [{
           uri: request.params.uri,
           mimeType: "application/json",
-          text: JSON.stringify({ decisionVelocity: 8, rhr: 58, hrv: 65, systemicReadiness: 82 })
+          text: JSON.stringify({ decisionVelocity: 1, rhr: 82, hrv: 35, systemicReadiness: 45 })
         }]
       };
     }
