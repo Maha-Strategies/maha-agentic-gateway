@@ -117,7 +117,7 @@ function createMahaServer() {
     ]
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (request.params.name === "get_sovereign_baseline") {
       // The MCP SDK doesn't natively expose the transport session ID here yet, 
       // so we generate a secure temporary handshake token.
