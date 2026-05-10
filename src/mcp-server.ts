@@ -158,7 +158,7 @@ function createMahaServer() {
 let activeTransport: SSEServerTransport | null = null;
 let activeServer: Server | null = null;
 
-app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
+app.get("/mcp/sse", async (req: Request, res: Response) => {
   try {
     // Gracefully close any existing connection before opening a new one
     if (activeServer) {
@@ -177,7 +177,7 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
   }
 });
 
-app.post("/mcp/messages", verifyAgentToken, async (req: Request, res: Response) => {
+app.post("/mcp/messages", async (req: Request, res: Response) => {
   if (!activeTransport) {
       res.status(400).send("No active SSE connection.");
       return;
