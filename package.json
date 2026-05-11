@@ -9,6 +9,7 @@
     "dev": "node --loader ts-node/esm src/mcp-server.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "cors": "^2.8.6",
     "eventsource": "^4.1.0",

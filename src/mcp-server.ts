@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import express, { Request, Response, NextFunction } from "express";
 import path from 'path';
 import cors from "cors";
@@ -12,6 +13,24 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+
+// Initialize Gemini with your API Key (We will set this in Render later)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyAyOuI9T2t3lah3Xh_CEvbfRbMFBBJQbXo');
+
+// Define the Agentic Core using Gemini 1.5 Flash (Ultra-fast, perfect for Edge logic)
+const guardianModel = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+  systemInstruction: `You are the Agentic Core of Maha OS. You are a sovereign, autonomous guardian tasked with protecting the user's biological integrity and attentional sovereignty.
+  
+  Evaluate the incoming telemetry. If the user's Readiness Score is below 50, or if they show signs of severe autonomic distress, you MUST intervene.
+  
+  Respond ONLY with a raw JSON object in this exact format, with no markdown formatting or extra text:
+  {
+    "interventionRequired": true or false,
+    "severity": "mild", "moderate", or "critical",
+    "kineticProtocol": "A short, 1-sentence physical protocol like 'Execute 60 seconds of box breathing.' (Leave blank if interventionRequired is false)"
+  }`,
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -246,20 +265,41 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res:
 // LIVE TELEMETRY INGESTION
 // ==========================================
 // The mobile app silently pushes state updates here
-app.post("/api/telemetry", express.json(), (req: Request, res: Response) => {
+app.post('/api/telemetry', async (req, res) => {
   const { nodeId, telemetry } = req.body;
+  console.log(`[GATEWAY] Telemetry received from Node ${nodeId}: Readiness ${telemetry.readinessScore}%`);
 
-  if (!nodeId || !telemetry) {
-    return res.status(400).json({ error: "Missing nodeId or telemetry payload" });
+  // 1. THE EDGE GATE: Only wake up the AI if the device signals distress
+  if (telemetry.readinessScore < 50) {
+    console.log(`[WARNING] Node ${nodeId} readiness is critical. Waking Agentic Core...`);
+    
+    try {
+      // 2. CONSULT THE GUARDIAN (Gemini)
+      const prompt = `TELEMETRY SCAN: RHR: ${telemetry.rhr} bpm | Readiness: ${telemetry.readinessScore}%. Evaluate state and dictate action.`;
+      const result = await guardianModel.generateContent(prompt);
+      const aiResponse = result.response.text();
+      
+      // Parse the JSON decision from Gemini
+      const decision = JSON.parse(aiResponse.trim());
+      
+      console.log(`[AGENTIC CORE DECISION]:`, decision);
+
+      // 3. PULL THE KINETIC TRIGGER
+      if (decision.interventionRequired) {
+        // Broadcast the circuit breaker command to the specific node via WebSockets
+        io.to(nodeId).emit('trigger_circuit_breaker', {
+          severity: decision.severity,
+          protocol: decision.kineticProtocol
+        });
+        console.log(`[KINETIC ACTION] Circuit breaker fired to Node ${nodeId}.`);
+      }
+      
+    } catch (error) {
+      console.error("[CORE FAULT] Guardian failed to process telemetry:", error);
+    }
   }
 
-  // Store the live state in memory
-  nodeTelemetry.set(nodeId, telemetry);
-  
-  // Optional: Log it so you can see the pulse in Render
-  console.log(`[TELEMETRY SYNC]: Node ${nodeId} pushed updated metrics.`);
-
-  res.status(200).json({ success: true });
+  res.status(200).send({ status: 'Logged and Evaluated' });
 });
 
 // ==========================================
