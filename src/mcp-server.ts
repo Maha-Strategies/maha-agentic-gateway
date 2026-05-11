@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import express, { Request, Response, NextFunction } from "express";
 import path from 'path';
@@ -15,7 +16,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 // Initialize Gemini with your API Key (We will set this in Render later)
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyAyOuI9T2t3lah3Xh_CEvbfRbMFBBJQbXo');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ||'');
 
 // Define the Agentic Core using Gemini 1.5 Flash (Ultra-fast, perfect for Edge logic)
 const guardianModel = genAI.getGenerativeModel({
@@ -50,7 +51,7 @@ app.use(express.json()); // <--- Add this to parse incoming JSON payloads
 // ==========================================
 // 1. AUTHENTICATION MIDDLEWARE
 // ==========================================
-const AUTHORIZED_TOKEN = process.env.MAHA_AGENT_TOKEN || 'sk-maha-test-token-77x9';
+const AUTHORIZED_TOKEN = process.env.MAHA_AGENT_TOKEN;
 
 const verifyAgentToken = (req: Request, res: Response, next: NextFunction): void => {
     const authHeader = req.headers.authorization;
