@@ -280,9 +280,12 @@ app.post('/api/telemetry', async (req, res) => {
       const prompt = `TELEMETRY SCAN: RHR: ${telemetry.rhr} bpm | Readiness: ${telemetry.readinessScore}%. Evaluate state and dictate action.`;
       const result = await guardianModel.generateContent(prompt);
       const aiResponse = result.response.text();
-      
-      // Parse the JSON decision from Gemini
-      const decision = JSON.parse(aiResponse.trim());
+
+      // Strip markdown formatting if the LLM gets chatty
+      const sanitizedResponse = aiResponse.replace(/```json/gi, "").replace(/```/gi, "").trim();
+
+      // Parse the clean JSON
+      const decision = JSON.parse(sanitizedResponse);
       
       console.log(`[AGENTIC CORE DECISION]:`, decision);
 
