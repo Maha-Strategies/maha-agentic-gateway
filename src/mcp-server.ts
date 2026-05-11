@@ -169,6 +169,9 @@ function createMahaServer() {
 let activeTransport: SSEServerTransport | null = null;
 let activeServer: Server | null = null;
 
+// NEW: Memory map to lock Session IDs to physical devices (Node IDs)
+const activeSessions = new Map<string, string>();
+
 app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
   try {
     // Gracefully close any existing connection before opening a new one
@@ -223,6 +226,32 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res:
     console.error("Error triggering REST intervention:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
+
+// ==========================================
+// SESSION LOCKING ENDPOINT
+// ==========================================
+// The mobile app hits this after catching the deep link
+app.post("/api/link-session", express.json(), (req: Request, res: Response) => {
+  const { sid, nodeId } = req.body;
+
+  if (!sid || !nodeId) {
+    return res.status(400).json({ error: "Missing sid or nodeId" });
+  }
+
+  // Lock the session to the physical device
+  activeSessions.set(sid, nodeId);
+  
+  console.log(`[LINK ESTABLISHED]: Session ${sid} is securely bound to Node ${nodeId}`);
+
+  // Broadcast the success via WebSocket so the frontend can react if needed
+  io.emit("session_linked", { sid, nodeId });
+
+  res.status(200).json({ 
+    success: true, 
+    message: "Sovereign Link locked successfully.",
+    node: nodeId
+  });
 });
 
 // ==========================================
