@@ -45,6 +45,7 @@ const io = new SocketServer(httpServer, {
 
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.json()); // <--- Add this to parse incoming JSON payloads
 
 // ==========================================
 // 1. AUTHENTICATION MIDDLEWARE
