@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import express from "express";
 import path from 'path';
@@ -9,10 +10,10 @@ import { fileURLToPath } from 'url';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { ListResourcesRequestSchema, ReadResourceRequestSchema, ListToolsRequestSchema, CallToolRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
 // Initialize Gemini with your API Key (We will set this in Render later)
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyAyOuI9T2t3lah3Xh_CEvbfRbMFBBJQbXo');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // Define the Agentic Core using Gemini 1.5 Flash (Ultra-fast, perfect for Edge logic)
 const guardianModel = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.5-flash",
     systemInstruction: `You are the Agentic Core of Maha OS. You are a sovereign, autonomous guardian tasked with protecting the user's biological integrity and attentional sovereignty.
   
   Evaluate the incoming telemetry. If the user's Readiness Score is below 50, or if they show signs of severe autonomic distress, you MUST intervene.
@@ -35,10 +36,11 @@ const io = new SocketServer(httpServer, {
 });
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.json()); // <--- Add this to parse incoming JSON payloads
 // ==========================================
 // 1. AUTHENTICATION MIDDLEWARE
 // ==========================================
-const AUTHORIZED_TOKEN = process.env.MAHA_AGENT_TOKEN || 'sk-maha-test-token-77x9';
+const AUTHORIZED_TOKEN = process.env.MAHA_AGENT_TOKEN;
 const verifyAgentToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
