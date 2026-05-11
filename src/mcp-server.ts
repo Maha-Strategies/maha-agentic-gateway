@@ -82,11 +82,24 @@ function createMahaServer() {
 
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     if (request.params.uri === "maha://telemetry/current") {
+      // 1. Define the fallback dummy data
+      const defaultTelemetry = { decisionVelocity: 8, rhr: 58, hrv: 60, systemicReadiness: 80 };
+      
+      // 2. Grab the first active node (since this is a single-user sovereign architecture)
+      const activeNode = Array.from(activeSessions.values())[0];
+      
+      // 3. If we have a paired node AND we have live telemetry for it, use it. Otherwise, fallback.
+      const currentTelemetry = activeNode && nodeTelemetry.has(activeNode)
+        ? nodeTelemetry.get(activeNode)
+        : defaultTelemetry;
+
+      console.log(`[AGENT QUERY]: AI reading telemetry. Using live data: ${!!(activeNode && nodeTelemetry.has(activeNode))}`);
+
       return {
         contents: [{
           uri: request.params.uri,
           mimeType: "application/json",
-          text: JSON.stringify({ decisionVelocity: 8, rhr: 58, hrv: 60, systemicReadiness: 80 })
+          text: JSON.stringify(currentTelemetry)
         }]
       };
     }
@@ -171,7 +184,8 @@ let activeServer: Server | null = null;
 
 // NEW: Memory map to lock Session IDs to physical devices (Node IDs)
 const activeSessions = new Map<string, string>();
-
+// NEW: Memory map to hold the live telemetry for each active Node
+const nodeTelemetry = new Map<string, any>();
 app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
   try {
     // Gracefully close any existing connection before opening a new one
@@ -226,6 +240,26 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res:
     console.error("Error triggering REST intervention:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
+
+// ==========================================
+// LIVE TELEMETRY INGESTION
+// ==========================================
+// The mobile app silently pushes state updates here
+app.post("/api/telemetry", express.json(), (req: Request, res: Response) => {
+  const { nodeId, telemetry } = req.body;
+
+  if (!nodeId || !telemetry) {
+    return res.status(400).json({ error: "Missing nodeId or telemetry payload" });
+  }
+
+  // Store the live state in memory
+  nodeTelemetry.set(nodeId, telemetry);
+  
+  // Optional: Log it so you can see the pulse in Render
+  console.log(`[TELEMETRY SYNC]: Node ${nodeId} pushed updated metrics.`);
+
+  res.status(200).json({ success: true });
 });
 
 // ==========================================
