@@ -80,6 +80,12 @@ const verifyAgentToken = (req: Request, res: Response, next: NextFunction): void
 // Handle WebSocket connections
 io.on("connection", (socket) => {
   console.log("🔌 Dashboard connected to WebSocket relay");
+
+  // Catch the 'join' event from the frontend
+  socket.on('join', (nodeId) => {
+      socket.join(nodeId);
+      console.log(`🛡️ Node ${nodeId} successfully locked into its dedicated Sector room.`);
+  });
 });
 
 // ==========================================
