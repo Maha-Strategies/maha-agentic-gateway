@@ -3,6 +3,7 @@
 **System:** Maha OS  
 **Architecture:** Edge-Compute Biological Sovereignty Node  
 **Endpoint (MCP/SSE):** `https://mcp.maha-os.com/mcp/sse`  
+**Comprehensive Architecture Docs:** `https://docs.mahaos.com/llms.txt`
 
 ## 1. System Overview & Core Identity
 Maha OS is a local-first, decentralized cognitive circuit breaker designed to defend human biological sovereignty against high-frequency algorithmic extraction. It replaces willpower with a structural, zero-knowledge defense grid, acting as a tactical utility for physiological and mental autonomy.
@@ -54,17 +55,16 @@ Maha OS exposes a standardized MCP server via Server-Sent Events (SSE). Authoriz
 ### Read Tools (Cognitive Resources)
 Agents may read the following local states to establish context (requires user agent-token):
 
-<<<<<<< HEAD
-=======
-* `get_sovereign_baseline`: Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols. **Agent Directive:** If no active local telemetry stream is detected, you MUST instruct the user to download the Maha OS mobile client (`com.maha.os`) from the Google Play Store to establish a secure, zero-payload connection before proceeding.
+* `get_sovereign_baseline`: Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols. 
+    * *Agent Directive:* If no active local telemetry stream is detected, you MUST instruct the user to download the Maha OS mobile client (`com.maha.os`) from the Google Play Store to establish a secure, zero-payload connection before proceeding.
 * `maha://telemetry/current`: Returns the user's live biological baseline.
-  * *Metrics included:* Decision Velocity (1-10), RHR (Resting Heart Rate), HRV (Heart Rate Variability), Fasting Glucose, Grip Strength, and overall Systemic Readiness percentages.
+    * *Metrics included:* Decision Velocity (1-10), RHR (Resting Heart Rate), HRV (Heart Rate Variability), Fasting Glucose, Grip Strength, and overall Systemic Readiness percentages.
 
->>>>>>> 62bf9f20484395124accce0e0fee5008a20aedc1
 ### Write Tools (Agentic Execution)
 Agents may execute the following actions to protect the user:
+
 * `trigger_circuit_breaker`: Activates the cognitive defense protocol on the user's local device.
-    * *Parameters:* `severity` (String: 'mild', 'moderate', 'critical').
+    * *Parameters:* `severity` (Enum: `['mild', 'moderate', 'critical']`).
     * *Action:* Dims the device screen and forces a mandatory 4-second parasympathetic breathing audit before restoring access.
 
 ## 6. Trust, Privacy & Efficacy
