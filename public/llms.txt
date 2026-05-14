@@ -71,3 +71,5 @@ Agents may execute the following actions to protect the user:
 * **Zero-Payload Telemetry:** Maha OS does not aggregate raw biometric data in the cloud. All physiological data is processed locally on the edge.
 * **Zero-Knowledge (ZK) Proofs:** Efficacy is proven via Verifiable Machine Learning. The system generates cryptographic proofs of diverted extractive load without revealing individual user data.
 * **Interoperability:** Operates alongside Apple Health, Google Fit, Oura, and Dexcom via local nodal storage.
+
+OpenAPI Specification: https://mcp.maha-os.com/openapi.json

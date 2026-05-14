@@ -1,0 +1,97 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Maha OS Agentic Gateway",
+    "description": "REST API for the Maha OS edge-compute defense grid. Enables biometric telemetry ingestion and autonomous kinetic interventions to protect biological sovereignty.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Maha Strategies LLC"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mcp.maha-os.com",
+      "description": "Production Agentic Relay"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Agent-Token"
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/telemetry": {
+      "post": {
+        "summary": "Ingest Biometric Telemetry",
+        "description": "Receives anonymized physiological markers from the Android edge node. Evaluates Systemic Readiness to determine if an Algorithmic Trance is occurring.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nodeId": {
+                    "type": "string",
+                    "example": "MAHA-A1B2-2027"
+                  },
+                  "telemetry": {
+                    "type": "object",
+                    "properties": {
+                      "rhr": { "type": "integer", "example": 65 },
+                      "readinessScore": { "type": "integer", "example": 45 }
+                    }
+                  }
+                },
+                "required": ["nodeId", "telemetry"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Telemetry logged and evaluated by the Agentic Core."
+          }
+        }
+      }
+    },
+    "/api/intervene": {
+      "post": {
+        "summary": "Trigger Kinetic Intervention",
+        "description": "Fires an absolute z-index preemption overlay down to the specified edge node, severing underlying device navigation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "severity": {
+                    "type": "string",
+                    "enum": ["mild", "moderate", "critical"],
+                    "description": "Dictates the friction of the hardware-verified unlock protocol."
+                  }
+                },
+                "required": ["severity"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Circuit breaker activated successfully."
+          }
+        }
+      }
+    }
+  }
+}
