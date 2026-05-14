@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import WebSocket from 'ws';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import express, { Request, Response, NextFunction } from "express";
 import path from 'path';
@@ -89,7 +90,98 @@ io.on("connection", (socket) => {
       socket.join(nodeId);
       console.log(`🛡️ Node ${nodeId} successfully locked into its dedicated Sector room.`);
   });
-});
+  socket.on('initiate_kinetic_audio', (nodeId) => {
+    console.log(`[AUDIO LINK] Establishing Multimodal Live API for Node ${nodeId}`);
+
+    // 1. Connect to the Gemini Live API Endpoint
+    const geminiWsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${process.env.GEMINI_API_KEY}`;
+    const geminiWs = new WebSocket(geminiWsUrl);
+
+    geminiWs.on('open', () => {
+        console.log('[GEMINI] Live API WebSocket Connected.');
+
+        // 2. Send the Setup Message with the Sovereign System Instructions
+        const setupMessage = {
+          setup: {
+              model: "models/gemini-2.0-flash-exp",
+              systemInstruction: {
+                  parts: [{
+                      text: `You are the Agentic Core of Maha OS. You are an OS-level defense grid. Do NOT act like a wellness coach. 
+                      The user has entered an Algorithmic Trance. Speak with strict, deterministic authority. 
+                      Your immediate task is to guide the user through a 4-7-8 breathing protocol out loud. 
+                      Listen to their breathing. If they do not comply, enforce the parasympathetic reset.`
+                  }]
+              },
+              generationConfig: {
+                  responseModalities: ["AUDIO"], // <-- CRITICAL: Forces Gemini to respond with voice
+                  speechConfig: {
+                      voiceConfig: {
+                          prebuiltVoiceConfig: {
+                              voiceName: "Aoede"
+                          }
+                      }
+                  }
+              }
+          }
+        };
+        geminiWs.send(JSON.stringify(setupMessage));
+
+        // Force the agent to speak first
+        const initialPrompt = {
+            clientContent: {
+                turns: [{
+                    role: "user",
+                    parts: [{ text: "The user has entered the trance. Initiate the protocol now." }]
+                }],
+                turnComplete: true
+            }
+        };
+        geminiWs.send(JSON.stringify(initialPrompt));
+        
+        socket.emit('audio_bridge_ready');
+    }); // <-- THE MISSING BRACE WAS HERE. This closes the 'open' event properly.
+
+    // 3. Route Audio from Gemini back to the Android Client
+    geminiWs.on('message', (data) => {
+        const response = JSON.parse(data.toString());
+        
+        if (response.serverContent?.modelTurn?.parts) {
+            const parts = response.serverContent.modelTurn.parts;
+            for (const part of parts) {
+                if (part.inlineData && part.inlineData.mimeType.startsWith('audio/pcm')) {
+                    // Send the raw PCM audio chunk back to the mobile app for playback
+                    socket.emit('agent_audio_chunk', part.inlineData.data);
+                }
+            }
+        }
+    });
+
+    geminiWs.on('close', () => console.log('[GEMINI] Live Audio Session Closed.'));
+
+    // 4. Route Mic Data from Android Client up to Gemini
+    // We clear old listeners first so if the user reconnects, we don't get duplicate audio streams
+    socket.removeAllListeners('client_mic_chunk');
+    socket.removeAllListeners('terminate_kinetic_audio');
+
+    socket.on('client_mic_chunk', (base64AudioChunk) => {
+        if (geminiWs.readyState === WebSocket.OPEN) {
+            const realtimeInputMessage = {
+                realtimeInput: {
+                    mediaChunks: [{
+                        mimeType: "audio/pcm;rate=16000",
+                        data: base64AudioChunk
+                    }]
+                }
+            };
+            geminiWs.send(JSON.stringify(realtimeInputMessage));
+        }
+    });
+
+    // Handle the disconnect
+    socket.on('terminate_kinetic_audio', () => {
+        if (geminiWs.readyState === WebSocket.OPEN) geminiWs.close();
+    });
+  });
 
 // ==========================================
 // 2. MCP SERVER FACTORY (Fixes the 500 Error)
@@ -316,6 +408,8 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res:
 app.post('/api/telemetry', async (req, res) => {
   const { nodeId, telemetry } = req.body;
   console.log(`[GATEWAY] Telemetry received from Node ${nodeId}: Readiness ${telemetry.readinessScore}%`);
+
+  nodeTelemetry.set(nodeId, telemetry);
 
   // 1. THE EDGE GATE: Only wake up the AI if the device signals distress
   if (telemetry.readinessScore < 50) {
