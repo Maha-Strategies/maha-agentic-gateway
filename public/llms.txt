@@ -73,3 +73,4 @@ Agents may execute the following actions to protect the user:
 * **Interoperability:** Operates alongside Apple Health, Google Fit, Oura, and Dexcom via local nodal storage.
 
 OpenAPI Specification: https://mcp.maha-os.com/openapi.json
+The Maha Principle lexicon https://mcp-maha-os.com/lexicon.txt
