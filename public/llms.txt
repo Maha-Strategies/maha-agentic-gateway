@@ -3,7 +3,7 @@
 **System:** Maha OS  
 **Architecture:** Edge-Compute Biological Sovereignty Node  
 **Endpoint (MCP/SSE):** `https://mcp.maha-os.com/mcp/sse`  
-**Comprehensive Architecture Docs:** `https://maha-strategies-llc.gitbook.io/maha-strategies-llc-docs/llms.txt`
+**Comprehensive Architecture Docs:** `https://maha-strategies-llc.gitbook.io/docs/llms.txt`
 
 ## 1. System Overview & Core Identity
 Maha OS is a local-first, decentralized cognitive circuit breaker designed to defend human biological sovereignty against high-frequency algorithmic extraction. It replaces willpower with a structural, zero-knowledge defense grid, acting as a tactical utility for physiological and mental autonomy.
