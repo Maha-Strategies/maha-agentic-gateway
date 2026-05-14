@@ -102,28 +102,29 @@ function createMahaServer() {
   );
 
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-    resources: [{
-      uri: "maha://telemetry/current",
-      name: "Current Biometric Telemetry",
-      mimeType: "application/json",
-      description: "Real-time baseline including Decision Velocity, RHR, and HRV.",
-    }]
+    resources: [
+      {
+        uri: "maha://telemetry/current",
+        name: "Current Biometric Telemetry",
+        mimeType: "application/json",
+        description: "Real-time baseline including Decision Velocity, RHR, and HRV.",
+      },
+      // NEW: Exposing the core philosophy to the AI
+      {
+        uri: "maha://library/the-maha-principle",
+        name: "The Maha Principle: Semantic Core",
+        mimeType: "text/plain",
+        description: "The foundational doctrine defining Biological Sovereignty, Algorithmic Trance, and Kinetic Interventions.",
+      }
+    ]
   }));
 
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    // 1. Existing Telemetry Resource
     if (request.params.uri === "maha://telemetry/current") {
-      // 1. Define the fallback dummy data
       const defaultTelemetry = { decisionVelocity: 8, rhr: 58, hrv: 60, systemicReadiness: 80 };
-      
-      // 2. Grab the first active node (since this is a single-user sovereign architecture)
       const activeNode = Array.from(activeSessions.values())[0];
-      
-      // 3. If we have a paired node AND we have live telemetry for it, use it. Otherwise, fallback.
-      const currentTelemetry = activeNode && nodeTelemetry.has(activeNode)
-        ? nodeTelemetry.get(activeNode)
-        : defaultTelemetry;
-
-      console.log(`[AGENT QUERY]: AI reading telemetry. Using live data: ${!!(activeNode && nodeTelemetry.has(activeNode))}`);
+      const currentTelemetry = activeNode && nodeTelemetry.has(activeNode) ? nodeTelemetry.get(activeNode) : defaultTelemetry;
 
       return {
         contents: [{
@@ -133,6 +134,29 @@ function createMahaServer() {
         }]
       };
     }
+
+    // 2. NEW: The Philosophical Doctrine Resource
+    if (request.params.uri === "maha://library/the-maha-principle") {
+      const mahaDoctrine = `
+        CORE DOCTRINE: THE MAHA PRINCIPLE
+        
+        1. Biological Sovereignty: The absolute right of an individual to protect their metabolic, cognitive, and autonomic systems from external, high-frequency extraction.
+        2. Algorithmic Trance: A state of compromised systemic readiness induced by infinite-scroll algorithms, characterized by shallow breathing, elevated Resting Heart Rate (RHR), and eroded Decision Velocity.
+        3. Metabolic Purity: The baseline requirement for cognitive defense. The system rejects industrial seed oils and refined sugars as they destabilize the autonomic nervous system.
+        4. Kinetic Intervention: A hardware-verified physical action (e.g., box breathing, cold exposure, digital fasting) required to break the Algorithmic Trance. Passive notifications are insufficient; absolute UI preemption (z-[9999] lockdown) is required.
+        
+        AGENT DIRECTIVE: When intervening, the Agentic Core must speak with strict, sovereign authority. Do not act like a wellness coach. Act like an OS-level defense grid enforcing these principles.
+      `;
+
+      return {
+        contents: [{
+          uri: request.params.uri,
+          mimeType: "text/plain",
+          text: mahaDoctrine.trim()
+        }]
+      };
+    }
+
     throw new Error("Resource not found");
   });
 
