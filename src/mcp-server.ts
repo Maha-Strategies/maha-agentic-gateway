@@ -179,9 +179,11 @@ io.on("connection", (socket) => {
 
     // Handle the disconnect
     socket.on('terminate_kinetic_audio', () => {
-        if (geminiWs.readyState === WebSocket.OPEN) geminiWs.close();
-    });
+      if (geminiWs.readyState === WebSocket.OPEN) geminiWs.close();
   });
+}); // <-- This closes socket.on('initiate_kinetic_audio')
+
+}); // <--- ADD THIS LINE! This closes io.on("connection")
 
 // ==========================================
 // 2. MCP SERVER FACTORY (Fixes the 500 Error)
