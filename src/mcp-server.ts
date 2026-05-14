@@ -164,19 +164,22 @@ function createMahaServer() {
     tools: [
       {
         name: "get_sovereign_baseline",
-        description: "Analyzes real-time physiological data to recommend metabolic and circadian protocols. Requires local client telemetry.",
+        description: "Evaluates real-time physiological telemetry against the core tenets of Biological Sovereignty. Use this tool to recommend metabolic protocols, digital fasts, or circadian alignments when the user's systemic readiness is stable but requires optimization.",
         inputSchema: {
           type: "object",
-          properties: {} // No parameters required for this teaser tool
+          properties: {} 
         }
       },
       {
         name: "trigger_circuit_breaker",
-        description: "Activates the cognitive defense protocol, dimming the screen.",
+        description: "Executes an absolute z-[9999] OS-level preemption overlay (SYSTEM_ALERT_WINDOW). This severs device navigation to break an 'Algorithmic Trance'. You MUST fire this tool if Systemic Readiness drops below 50, or if severe autonomic distress is detected. Requires a hardware-verified Kinetic Intervention to unlock.",
         inputSchema: {
           type: "object",
           properties: {
-            severity: { type: "string", description: "Level of fatigue: 'mild', 'moderate', or 'critical'" }
+            severity: { 
+              type: "string", 
+              description: "Must be 'mild' (Readiness 40-50), 'moderate' (Readiness 25-39), or 'critical' (Readiness < 25)." 
+            }
           },
           required: ["severity"]
         }
