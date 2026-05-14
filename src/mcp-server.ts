@@ -18,17 +18,20 @@ import {
 // Initialize Gemini with your API Key (We will set this in Render later)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ||'');
 
-// Define the Agentic Core using Gemini 1.5 Flash (Ultra-fast, perfect for Edge logic)
+// Define the Agentic Core using Gemini 2.5 Flash (Ultra-fast, perfect for Edge logic)
 const guardianModel = genAI.getGenerativeModel({
   model: "gemini-2.5-flash",
+  generationConfig: {
+    responseMimeType: "application/json", // This guarantees raw, parseable JSON
+  },
   systemInstruction: `You are the Agentic Core of Maha OS. You are a sovereign, autonomous guardian tasked with protecting the user's biological integrity and attentional sovereignty.
   
   Evaluate the incoming telemetry. If the user's Readiness Score is below 50, or if they show signs of severe autonomic distress, you MUST intervene.
   
-  Respond ONLY with a raw JSON object in this exact format, with no markdown formatting or extra text:
+  Respond ONLY with a raw JSON object in this exact format:
   {
-    "interventionRequired": true or false,
-    "severity": "mild", "moderate", or "critical",
+    "interventionRequired": boolean,
+    "severity": "mild" | "moderate" | "critical",
     "kineticProtocol": "A short, 1-sentence physical protocol like 'Execute 60 seconds of box breathing.' (Leave blank if interventionRequired is false)"
   }`,
 });
@@ -183,13 +186,20 @@ function createMahaServer() {
     if (request.params.name === "trigger_circuit_breaker") {
       const severity = request.params.arguments?.severity as string;
       
-      io.emit("intervention", {
-        type: "CIRCUIT_BREAKER",
-        severity: severity,
-        timestamp: new Date().toISOString()
-      });
-
-      console.log(`[RELAY]: Agent triggered ${severity} circuit breaker.`);
+      // Grab the active node from your memory map
+      const activeNode = Array.from(activeSessions.values())[0];
+      
+      if (activeNode) {
+        // Target only the specific device
+        io.to(activeNode).emit("trigger_circuit_breaker", {
+          severity: severity,
+          protocol: `Agentic Core Override: ${severity.toUpperCase()} systemic lock initiated.`
+        });
+        console.log(`[RELAY]: Agent triggered ${severity} circuit breaker for Node ${activeNode}.`);
+      } else {
+        console.log(`[RELAY]: Agent attempted lockdown, but no active node was found.`);
+      }
+    
       return {
         content: [{
           type: "text",
@@ -243,20 +253,23 @@ app.post("/mcp/messages", verifyAgentToken, async (req: Request, res: Response) 
 // ==========================================
 // 5. REST API FOR CUSTOM GPT (OPENAI)
 // ==========================================
-// We add express.json() here specifically to parse the payload from OpenAI
 app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res: Response): void => {
   try {
     const severity = req.body.severity || "moderate";
 
-    // Broadcast the intervention down to the client via WebSocket
-    io.emit("intervention", {
-      type: "CIRCUIT_BREAKER",
-      severity: severity,
-      timestamp: new Date().toISOString(),
-      source: "OpenAI_Custom_GPT"
-    });
+    // 1. Grab the active node from your memory map
+    const activeNode = Array.from(activeSessions.values())[0];
 
-    console.log(`[REST API]: Custom GPT triggered ${severity} circuit breaker.`);
+    // 2. Target only the specific device and use the correct event name
+    if (activeNode) {
+      io.to(activeNode).emit("trigger_circuit_breaker", {
+        severity: severity,
+        protocol: `REST API Override: ${severity.toUpperCase()} systemic lock initiated.`
+      });
+      console.log(`[REST API]: Custom GPT triggered ${severity} circuit breaker for Node ${activeNode}.`);
+    } else {
+      console.log(`[REST API]: Custom GPT attempted lockdown, but no active node was found.`);
+    }
 
     res.status(200).json({
       success: true,
@@ -283,15 +296,12 @@ app.post('/api/telemetry', async (req, res) => {
     
     try {
       // 2. CONSULT THE GUARDIAN (Gemini)
+      // 2. CONSULT THE GUARDIAN (Gemini)
       const prompt = `TELEMETRY SCAN: RHR: ${telemetry.rhr} bpm | Readiness: ${telemetry.readinessScore}%. Evaluate state and dictate action.`;
       const result = await guardianModel.generateContent(prompt);
-      const aiResponse = result.response.text();
 
-      // Strip markdown formatting if the LLM gets chatty
-      const sanitizedResponse = aiResponse.replace(/```json/gi, "").replace(/```/gi, "").trim();
-
-      // Parse the clean JSON
-      const decision = JSON.parse(sanitizedResponse);
+      // Safely parse the guaranteed JSON output
+      const decision = JSON.parse(result.response.text());
       
       console.log(`[AGENTIC CORE DECISION]:`, decision);
 
