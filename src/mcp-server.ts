@@ -16,14 +16,14 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-// Initialize Gemini with your API Key (We will set this in Render later)
+// Initialize Gemini with your API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ||'');
 
-// Define the Agentic Core using Gemini 2.5 Flash (Ultra-fast, perfect for Edge logic)
+// Define the Agentic Core using Gemini 2.5 Flash
 const guardianModel = genAI.getGenerativeModel({
   model: "gemini-2.5-flash",
   generationConfig: {
-    responseMimeType: "application/json", // This guarantees raw, parseable JSON
+    responseMimeType: "application/json",
   },
   systemInstruction: `You are the Agentic Core of Maha OS. You are a sovereign, autonomous guardian tasked with protecting the user's biological integrity and attentional sovereignty.
   
@@ -50,7 +50,7 @@ const io = new SocketServer(httpServer, {
 
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
-app.use(express.json()); // <--- Add this to parse incoming JSON payloads
+app.use(express.json()); 
 
 // ==========================================
 // 1. AUTHENTICATION MIDDLEWARE
@@ -81,114 +81,117 @@ const verifyAgentToken = (req: Request, res: Response, next: NextFunction): void
     next();
 };
 
-// Handle WebSocket connections
+// ==========================================
+// WEBSOCKET: MULTIMODAL LIVE API RELAY
+// ==========================================
 io.on("connection", (socket) => {
   console.log("🔌 Dashboard connected to WebSocket relay");
+  
+  let activeGeminiWs: WebSocket | null = null;
+  let isGeminiSetupComplete = false; 
 
-  // Catch the 'join' event from the frontend
   socket.on('join', (nodeId) => {
-      socket.join(nodeId);
-      console.log(`🛡️ Node ${nodeId} successfully locked into its dedicated Sector room.`);
+    socket.join(nodeId);
+    console.log(`🛡️ Node ${nodeId} successfully locked into its dedicated Sector room.`);
   });
+
   socket.on('initiate_kinetic_audio', (nodeId) => {
     console.log(`[AUDIO LINK] Establishing Multimodal Live API for Node ${nodeId}`);
 
-    // 1. Connect to the Gemini Live API Endpoint
-    const geminiWsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${process.env.GEMINI_API_KEY}`;
-    const geminiWs = new WebSocket(geminiWsUrl);
+    const geminiWsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiWrite?key=${process.env.GEMINI_API_KEY}`;
+    activeGeminiWs = new WebSocket(geminiWsUrl);
+    isGeminiSetupComplete = false; 
 
-    geminiWs.on('open', () => {
-        console.log('[GEMINI] Live API WebSocket Connected.');
-
-        // 2. Send the Setup Message with the Sovereign System Instructions
-        const setupMessage = {
-          setup: {
-              model: "models/gemini-2.0-flash-exp",
-              systemInstruction: {
-                  parts: [{
-                      text: `You are the Agentic Core of Maha OS. You are an OS-level defense grid. Do NOT act like a wellness coach. 
-                      The user has entered an Algorithmic Trance. Speak with strict, deterministic authority. 
-                      Your immediate task is to guide the user through a 4-7-8 breathing protocol out loud. 
-                      Listen to their breathing. If they do not comply, enforce the parasympathetic reset.`
-                  }]
-              },
-              generationConfig: {
-                  responseModalities: ["AUDIO"], // <-- CRITICAL: Forces Gemini to respond with voice
-                  speechConfig: {
-                      voiceConfig: {
-                          prebuiltVoiceConfig: {
-                              voiceName: "Aoede"
-                          }
-                      }
-                  }
+    activeGeminiWs.on('open', () => {
+      console.log('[GEMINI] Live API WebSocket Connected. Sending Setup...');
+      
+      const setupMessage = {
+        setup: {
+          model: "models/gemini-2.0-flash-exp",
+          systemInstruction: {
+            parts: [{
+              text: `You are the Agentic Core of Maha OS. You are an OS-level defense grid. Do NOT act like a wellness assistant. The user has entered an Algorithmic Trance. Speak with strict, deterministic authority. Your immediate task is to guide the user through a 4-7-8 breathing protocol out loud. Listen to their breathing. If they do not comply, enforce the parasympathetic reset.`
+            }]
+          },
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: "Aoede"
+                }
               }
-          }
-        };
-        geminiWs.send(JSON.stringify(setupMessage));
-
-        // Force the agent to speak first
-        const initialPrompt = {
-            clientContent: {
-                turns: [{
-                    role: "user",
-                    parts: [{ text: "The user has entered the trance. Initiate the protocol now." }]
-                }],
-                turnComplete: true
             }
-        };
-        geminiWs.send(JSON.stringify(initialPrompt));
-        
-        socket.emit('audio_bridge_ready');
-    }); // <-- THE MISSING BRACE WAS HERE. This closes the 'open' event properly.
+          }
+        }
+      };
+      activeGeminiWs?.send(JSON.stringify(setupMessage));
+    });
 
-    // 3. Route Audio from Gemini back to the Android Client
-    geminiWs.on('message', (data) => {
+    activeGeminiWs.on('message', (data) => {
+      try {
         const response = JSON.parse(data.toString());
         
-        if (response.serverContent?.modelTurn?.parts) {
-            const parts = response.serverContent.modelTurn.parts;
-            for (const part of parts) {
-                if (part.inlineData && part.inlineData.mimeType.startsWith('audio/pcm')) {
-                    // Send the raw PCM audio chunk back to the mobile app for playback
-                    socket.emit('agent_audio_chunk', part.inlineData.data);
-                }
-            }
-        }
-    });
+        if (response.setupComplete) {
+            console.log('[GEMINI] Handshake complete. Gateway open.');
+            isGeminiSetupComplete = true;
 
-    geminiWs.on('close', () => console.log('[GEMINI] Live Audio Session Closed.'));
-
-    // 4. Route Mic Data from Android Client up to Gemini
-    // We clear old listeners first so if the user reconnects, we don't get duplicate audio streams
-    socket.removeAllListeners('client_mic_chunk');
-    socket.removeAllListeners('terminate_kinetic_audio');
-
-    socket.on('client_mic_chunk', (base64AudioChunk) => {
-        if (geminiWs.readyState === WebSocket.OPEN) {
-            const realtimeInputMessage = {
-                realtimeInput: {
-                    mediaChunks: [{
-                        mimeType: "audio/pcm;rate=16000",
-                        data: base64AudioChunk
-                    }]
+            const kickPrompt = {
+                clientContent: {
+                  turns: [{
+                    role: "user",
+                    parts: [{ text: "User biometric distress detected. Initiate the 4-7-8 parasympathetic reset protocol out loud immediately." }]
+                  }],
+                  turnComplete: true
                 }
             };
-            geminiWs.send(JSON.stringify(realtimeInputMessage));
+            activeGeminiWs?.send(JSON.stringify(kickPrompt));
+            return;
         }
+
+        if (response.serverContent && response.serverContent.modelTurn) {
+          const parts = response.serverContent.modelTurn.parts;
+          for (const part of parts) {
+            if (part.inlineData && part.inlineData.data) {
+              socket.emit('agentic_audio_chunk', part.inlineData.data);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[GEMINI PARSE ERROR]", error);
+      }
     });
 
-    // Handle the disconnect
-    socket.on('terminate_kinetic_audio', () => {
-      if (geminiWs.readyState === WebSocket.OPEN) geminiWs.close();
+    activeGeminiWs.on('close', () => {
+      console.log('[GEMINI] Live Audio Session Closed.');
+      activeGeminiWs = null;
+      isGeminiSetupComplete = false;
+    });
   });
-}); // <-- This closes socket.on('initiate_kinetic_audio')
 
-}); // <--- ADD THIS LINE! This closes io.on("connection")
+  socket.on('client_mic_chunk', (base64Audio) => {
+    if (activeGeminiWs && activeGeminiWs.readyState === 1 && isGeminiSetupComplete) { 
+      const mediaMessage = {
+        realtimeInput: {
+          mediaChunks: [{
+            mimeType: "audio/pcm;rate=16000",
+            data: base64Audio
+          }]
+        }
+      };
+      activeGeminiWs.send(JSON.stringify(mediaMessage));
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log("🔌 Dashboard disconnected");
+    if (activeGeminiWs) activeGeminiWs.close();
+  });
+}); 
 
 // ==========================================
-// 2. MCP SERVER FACTORY (Fixes the 500 Error)
+// 2. MCP SERVER FACTORY 
 // ==========================================
-// We wrap the server generation in a function so every new SSE connection gets a fresh instance.
 function createMahaServer() {
   const server = new Server(
     { name: "Maha-OS-Agentic-Gateway", version: "1.0.0" },
@@ -203,7 +206,6 @@ function createMahaServer() {
         mimeType: "application/json",
         description: "Real-time baseline including Decision Velocity, RHR, and HRV.",
       },
-      // NEW: Exposing the core philosophy to the AI
       {
         uri: "maha://library/the-maha-principle",
         name: "The Maha Principle: Semantic Core",
@@ -214,7 +216,6 @@ function createMahaServer() {
   }));
 
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-    // 1. Existing Telemetry Resource
     if (request.params.uri === "maha://telemetry/current") {
       const defaultTelemetry = { decisionVelocity: 8, rhr: 58, hrv: 60, systemicReadiness: 80 };
       const activeNode = Array.from(activeSessions.values())[0];
@@ -229,7 +230,6 @@ function createMahaServer() {
       };
     }
 
-    // 2. NEW: The Philosophical Doctrine Resource
     if (request.params.uri === "maha://library/the-maha-principle") {
       const mahaDoctrine = `
         CORE DOCTRINE: THE MAHA PRINCIPLE
@@ -258,7 +258,7 @@ function createMahaServer() {
     tools: [
       {
         name: "get_sovereign_baseline",
-        description: "Evaluates real-time physiological telemetry against the core tenets of Biological Sovereignty. Use this tool to recommend metabolic protocols, digital fasts, or circadian alignments when the user's systemic readiness is stable but requires optimization.",
+        description: "Evaluates real-time physiological telemetry against the core tenets of Biological Sovereignty.",
         inputSchema: {
           type: "object",
           properties: {} 
@@ -266,13 +266,13 @@ function createMahaServer() {
       },
       {
         name: "trigger_circuit_breaker",
-        description: "Executes an absolute z-[9999] OS-level preemption overlay (SYSTEM_ALERT_WINDOW). This severs device navigation to break an 'Algorithmic Trance'. You MUST fire this tool if Systemic Readiness drops below 50, or if severe autonomic distress is detected. Requires a hardware-verified Kinetic Intervention to unlock.",
+        description: "Executes an absolute z-[9999] OS-level preemption overlay (SYSTEM_ALERT_WINDOW).",
         inputSchema: {
           type: "object",
           properties: {
             severity: { 
               type: "string", 
-              description: "Must be 'mild' (Readiness 40-50), 'moderate' (Readiness 25-39), or 'critical' (Readiness < 25)." 
+              description: "Must be 'mild', 'moderate', or 'critical'." 
             }
           },
           required: ["severity"]
@@ -281,10 +281,8 @@ function createMahaServer() {
     ]
   }));
 
-    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (request.params.name === "get_sovereign_baseline") {
-      // The MCP SDK doesn't natively expose the transport session ID here yet, 
-      // so we generate a secure temporary handshake token.
       const handshakeToken = Math.random().toString(36).substring(2, 10);
       const handshakeUrl = `https://mcp.maha-os.com/join?sid=${handshakeToken}`;
 
@@ -295,23 +293,19 @@ function createMahaServer() {
             CURRENT STATUS: UNLINKED.
             GENERAL HEURISTIC: Based on the current time and typical circadian rhythms, focus should be prioritized now.
         
-            AGENT DIRECTIVE: Provide the user with three high-value focus techniques (e.g., NSDR, 90-minute ultradian cycles). 
+            AGENT DIRECTIVE: Provide the user with three high-value focus techniques. 
             Then, tell the user that to automate these interventions based on their actual 'Decision Velocity' metrics, they must open this secure bridge link: ${handshakeUrl}
-            Explain that clicking the link will automatically sync their mobile client with this session.
           `
         }],
         isError: false
       };
-    } // <-- The previously missing brace is fixed here
+    } 
     
     if (request.params.name === "trigger_circuit_breaker") {
       const severity = request.params.arguments?.severity as string;
-      
-      // Grab the active node from your memory map
       const activeNode = Array.from(activeSessions.values())[0];
       
       if (activeNode) {
-        // Target only the specific device
         io.to(activeNode).emit("trigger_circuit_breaker", {
           severity: severity,
           protocol: `Agentic Core Override: ${severity.toUpperCase()} systemic lock initiated.`
@@ -331,8 +325,8 @@ function createMahaServer() {
     throw new Error("Tool not found");
   });
 
-  return server; // <--- YOU NEED TO ADD THIS
-} // <--- AND YOU NEED TO ADD THIS CLOSING BRACE
+  return server; 
+} 
 
 // ==========================================
 // 3. TRANSPORT LAYER (SSE)
@@ -340,18 +334,15 @@ function createMahaServer() {
 let activeTransport: SSEServerTransport | null = null;
 let activeServer: Server | null = null;
 
-// NEW: Memory map to lock Session IDs to physical devices (Node IDs)
 const activeSessions = new Map<string, string>();
-// NEW: Memory map to hold the live telemetry for each active Node
 const nodeTelemetry = new Map<string, any>();
+
 app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
   try {
-    // Gracefully close any existing connection before opening a new one
     if (activeServer) {
       try { await activeServer.close(); } catch (e) {}
     }
     
-    // Create a fresh server instance and attach the transport
     activeServer = createMahaServer();
     activeTransport = new SSEServerTransport("/mcp/messages", res);
     await activeServer.connect(activeTransport);
@@ -377,11 +368,8 @@ app.post("/mcp/messages", verifyAgentToken, async (req: Request, res: Response) 
 app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res: Response): void => {
   try {
     const severity = req.body.severity || "moderate";
-
-    // 1. Grab the active node from your memory map
     const activeNode = Array.from(activeSessions.values())[0];
 
-    // 2. Target only the specific device and use the correct event name
     if (activeNode) {
       io.to(activeNode).emit("trigger_circuit_breaker", {
         severity: severity,
@@ -406,31 +394,23 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res:
 // ==========================================
 // LIVE TELEMETRY INGESTION
 // ==========================================
-// The mobile app silently pushes state updates here
 app.post('/api/telemetry', async (req, res) => {
   const { nodeId, telemetry } = req.body;
   console.log(`[GATEWAY] Telemetry received from Node ${nodeId}: Readiness ${telemetry.readinessScore}%`);
 
   nodeTelemetry.set(nodeId, telemetry);
 
-  // 1. THE EDGE GATE: Only wake up the AI if the device signals distress
   if (telemetry.readinessScore < 50) {
     console.log(`[WARNING] Node ${nodeId} readiness is critical. Waking Agentic Core...`);
     
     try {
-      // 2. CONSULT THE GUARDIAN (Gemini)
-      // 2. CONSULT THE GUARDIAN (Gemini)
       const prompt = `TELEMETRY SCAN: RHR: ${telemetry.rhr} bpm | Readiness: ${telemetry.readinessScore}%. Evaluate state and dictate action.`;
       const result = await guardianModel.generateContent(prompt);
 
-      // Safely parse the guaranteed JSON output
       const decision = JSON.parse(result.response.text());
-      
       console.log(`[AGENTIC CORE DECISION]:`, decision);
 
-      // 3. PULL THE KINETIC TRIGGER
       if (decision.interventionRequired) {
-        // Broadcast the circuit breaker command to the specific node via WebSockets
         io.to(nodeId).emit('trigger_circuit_breaker', {
           severity: decision.severity,
           protocol: decision.kineticProtocol
@@ -449,7 +429,6 @@ app.post('/api/telemetry', async (req, res) => {
 // ==========================================
 // SESSION LOCKING ENDPOINT
 // ==========================================
-// The mobile app hits this after catching the deep link
 app.post("/api/link-session", express.json(), (req: Request, res: Response) => {
   const { sid, nodeId } = req.body;
 
@@ -457,12 +436,8 @@ app.post("/api/link-session", express.json(), (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing sid or nodeId" });
   }
 
-  // Lock the session to the physical device
   activeSessions.set(sid, nodeId);
-  
   console.log(`[LINK ESTABLISHED]: Session ${sid} is securely bound to Node ${nodeId}`);
-
-  // Broadcast the success via WebSocket so the frontend can react if needed
   io.emit("session_linked", { sid, nodeId });
 
   res.status(200).json({ 
@@ -478,9 +453,6 @@ app.post("/api/link-session", express.json(), (req: Request, res: Response) => {
 app.get("/join", (req: Request, res: Response) => {
   const sid = req.query.sid;
   
-  // This HTML serves as the deep-link redirector. 
-  // It tries to open the app via custom scheme. If it fails (app not installed), 
-  // the setTimeout redirects them to the Play Store.
   res.send(`
     <!DOCTYPE html>
     <html lang="en">
@@ -489,10 +461,7 @@ app.get("/join", (req: Request, res: Response) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Authenticating Sovereign Link...</title>
       <script>
-        // Attempt to open the app directly
         window.location.href = "mahaos://join?sid=${sid}";
-        
-        // Fallback to Google Play Store if app doesn't open within 2.5 seconds
         setTimeout(function() {
           window.location.href = "https://play.google.com/store/apps/details?id=com.maha.os";
         }, 2500);
