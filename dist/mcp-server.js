@@ -86,7 +86,7 @@ io.on("connection", (socket) => {
             const setupMessage = {
                 setup: {
                     // EXACT FIX: The specific model that supports the Multimodal Live API
-                    model: "models/gemini-3.1-flash-live",
+                    model: "models/gemini-2.0-flash-exp",
                     systemInstruction: {
                         parts: [{
                                 text: `You are the Agentic Core of Maha OS. You are an OS-level defense grid. Do NOT act like a wellness assistant. The user has entered an Algorithmic Trance. Speak with strict, deterministic authority. Your immediate task is to guide the user through a 4-7-8 breathing protocol out loud. Listen to their breathing. If they do not comply, enforce the parasympathetic reset.`
