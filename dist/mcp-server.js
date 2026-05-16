@@ -85,8 +85,8 @@ io.on("connection", (socket) => {
             console.log('[GEMINI] Live API WebSocket Connected. Sending Setup...');
             const setupMessage = {
                 setup: {
-                    // FIX: Correct Model Version
-                    model: "models/gemini-2.5-flash",
+                    // EXACT FIX: The specific model that supports the Multimodal Live API
+                    model: "models/gemini-3.1-flash-live",
                     systemInstruction: {
                         parts: [{
                                 text: `You are the Agentic Core of Maha OS. You are an OS-level defense grid. Do NOT act like a wellness assistant. The user has entered an Algorithmic Trance. Speak with strict, deterministic authority. Your immediate task is to guide the user through a 4-7-8 breathing protocol out loud. Listen to their breathing. If they do not comply, enforce the parasympathetic reset.`
@@ -109,6 +109,11 @@ io.on("connection", (socket) => {
         activeGeminiWs.on('message', (data) => {
             try {
                 const response = JSON.parse(data.toString());
+                // --- NEW: CATCH GOOGLE API REJECTIONS ---
+                if (response.error) {
+                    console.error('[GEMINI FATAL ERROR]:', response.error.message);
+                    return;
+                }
                 if (response.setupComplete) {
                     console.log('[GEMINI] Handshake complete. Gateway open.');
                     isGeminiSetupComplete = true;
@@ -137,12 +142,13 @@ io.on("connection", (socket) => {
                 console.error("[GEMINI PARSE ERROR]", error);
             }
         });
-        activeGeminiWs.on('close', () => {
-            console.log('[GEMINI] Live Audio Session Closed.');
+        activeGeminiWs.on('close', (code, reason) => {
+            // --- NEW: REVEAL WHY GOOGLE DROPPED US ---
+            console.log(`[GEMINI] Live Audio Session Closed. Code: ${code} Reason: ${reason.toString()}`);
             activeGeminiWs = null;
             isGeminiSetupComplete = false;
         });
-    });
+    }); // <--- EXACT FIX: THIS WAS THE MISSING BRACKET AND PARENTHESIS
     socket.on('client_mic_chunk', (base64Audio) => {
         if (activeGeminiWs && activeGeminiWs.readyState === 1 && isGeminiSetupComplete) {
             const mediaMessage = {
