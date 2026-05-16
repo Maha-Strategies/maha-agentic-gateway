@@ -77,14 +77,16 @@ io.on("connection", (socket) => {
     });
     socket.on('initiate_kinetic_audio', (nodeId) => {
         console.log(`[AUDIO LINK] Establishing Multimodal Live API for Node ${nodeId}`);
-        const geminiWsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiWrite?key=${process.env.GEMINI_API_KEY}`;
+        // FIX: Correct Endpoint URL
+        const geminiWsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${process.env.GEMINI_API_KEY}`;
         activeGeminiWs = new WebSocket(geminiWsUrl);
         isGeminiSetupComplete = false;
         activeGeminiWs.on('open', () => {
             console.log('[GEMINI] Live API WebSocket Connected. Sending Setup...');
             const setupMessage = {
                 setup: {
-                    model: "models/gemini-2.0-flash-exp",
+                    // FIX: Correct Model Version
+                    model: "models/gemini-2.5-flash",
                     systemInstruction: {
                         parts: [{
                                 text: `You are the Agentic Core of Maha OS. You are an OS-level defense grid. Do NOT act like a wellness assistant. The user has entered an Algorithmic Trance. Speak with strict, deterministic authority. Your immediate task is to guide the user through a 4-7-8 breathing protocol out loud. Listen to their breathing. If they do not comply, enforce the parasympathetic reset.`
@@ -348,81 +350,5 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req, res) => {
 // ==========================================
 app.post('/api/telemetry', async (req, res) => {
     const { nodeId, telemetry } = req.body;
-    console.log(`[GATEWAY] Telemetry received from Node ${nodeId}: Readiness ${telemetry.readinessScore}%`);
-    nodeTelemetry.set(nodeId, telemetry);
-    if (telemetry.readinessScore < 50) {
-        console.log(`[WARNING] Node ${nodeId} readiness is critical. Waking Agentic Core...`);
-        try {
-            const prompt = `TELEMETRY SCAN: RHR: ${telemetry.rhr} bpm | Readiness: ${telemetry.readinessScore}%. Evaluate state and dictate action.`;
-            const result = await guardianModel.generateContent(prompt);
-            const decision = JSON.parse(result.response.text());
-            console.log(`[AGENTIC CORE DECISION]:`, decision);
-            if (decision.interventionRequired) {
-                io.to(nodeId).emit('trigger_circuit_breaker', {
-                    severity: decision.severity,
-                    protocol: decision.kineticProtocol
-                });
-                console.log(`[KINETIC ACTION] Circuit breaker fired to Node ${nodeId}.`);
-            }
-        }
-        catch (error) {
-            console.error("[CORE FAULT] Guardian failed to process telemetry:", error);
-        }
-    }
-    res.status(200).send({ status: 'Logged and Evaluated' });
-});
-// ==========================================
-// SESSION LOCKING ENDPOINT
-// ==========================================
-app.post("/api/link-session", express.json(), (req, res) => {
-    const { sid, nodeId } = req.body;
-    if (!sid || !nodeId) {
-        return res.status(400).json({ error: "Missing sid or nodeId" });
-    }
-    activeSessions.set(sid, nodeId);
-    console.log(`[LINK ESTABLISHED]: Session ${sid} is securely bound to Node ${nodeId}`);
-    io.emit("session_linked", { sid, nodeId });
-    res.status(200).json({
-        success: true,
-        message: "Sovereign Link locked successfully.",
-        node: nodeId
-    });
-});
-// ==========================================
-// DEEP LINK REDIRECTOR (/join)
-// ==========================================
-app.get("/join", (req, res) => {
-    const sid = req.query.sid;
-    res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Authenticating Sovereign Link...</title>
-      <script>
-        window.location.href = "mahaos://join?sid=${sid}";
-        setTimeout(function() {
-          window.location.href = "https://play.google.com/store/apps/details?id=com.maha.os";
-        }, 2500);
-      </script>
-      <style>
-        body { background: #0c0c0c; color: #a8a29e; font-family: monospace; text-align: center; padding-top: 20%; }
-        a { color: #c2410c; text-decoration: none; font-weight: bold; }
-      </style>
-    </head>
-    <body>
-      <p>Establishing Sovereign Link...</p>
-      <p>If Maha OS does not open automatically, <a href="https://play.google.com/store/apps/details?id=com.maha.os">download it here</a>.</p>
-    </body>
-    </html>
-  `);
-});
-// ==========================================
-// 4. THE START COMMAND
-// ==========================================
-const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-    console.log(`Maha OS Gateway + WebSocket Relay active on port ${PORT}`);
-    console.log(`Manifest live at http://localhost:${PORT}/llms.txt`);
+    console.;
 });
