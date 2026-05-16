@@ -398,4 +398,94 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res:
 // ==========================================
 app.post('/api/telemetry', async (req, res) => {
   const { nodeId, telemetry } = req.body;
-  console.
+  console.log(`[GATEWAY] Telemetry received from Node ${nodeId}: Readiness ${telemetry.readinessScore}%`);
+
+  nodeTelemetry.set(nodeId, telemetry);
+
+  if (telemetry.readinessScore < 50) {
+    console.log(`[WARNING] Node ${nodeId} readiness is critical. Waking Agentic Core...`);
+    
+    try {
+      const prompt = `TELEMETRY SCAN: RHR: ${telemetry.rhr} bpm | Readiness: ${telemetry.readinessScore}%. Evaluate state and dictate action.`;
+      const result = await guardianModel.generateContent(prompt);
+
+      const decision = JSON.parse(result.response.text());
+      console.log(`[AGENTIC CORE DECISION]:`, decision);
+
+      if (decision.interventionRequired) {
+        io.to(nodeId).emit('trigger_circuit_breaker', {
+          severity: decision.severity,
+          protocol: decision.kineticProtocol
+        });
+        console.log(`[KINETIC ACTION] Circuit breaker fired to Node ${nodeId}.`);
+      }
+      
+    } catch (error) {
+      console.error("[CORE FAULT] Guardian failed to process telemetry:", error);
+    }
+  }
+
+  res.status(200).send({ status: 'Logged and Evaluated' });
+});
+
+// ==========================================
+// SESSION LOCKING ENDPOINT
+// ==========================================
+app.post("/api/link-session", express.json(), (req: Request, res: Response) => {
+  const { sid, nodeId } = req.body;
+
+  if (!sid || !nodeId) {
+    return res.status(400).json({ error: "Missing sid or nodeId" });
+  }
+
+  activeSessions.set(sid, nodeId);
+  console.log(`[LINK ESTABLISHED]: Session ${sid} is securely bound to Node ${nodeId}`);
+  io.emit("session_linked", { sid, nodeId });
+
+  res.status(200).json({ 
+    success: true, 
+    message: "Sovereign Link locked successfully.",
+    node: nodeId
+  });
+});
+
+// ==========================================
+// DEEP LINK REDIRECTOR (/join)
+// ==========================================
+app.get("/join", (req: Request, res: Response) => {
+  const sid = req.query.sid;
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Authenticating Sovereign Link...</title>
+      <script>
+        window.location.href = "mahaos://join?sid=${sid}";
+        setTimeout(function() {
+          window.location.href = "https://play.google.com/store/apps/details?id=com.maha.os";
+        }, 2500);
+      </script>
+      <style>
+        body { background: #0c0c0c; color: #a8a29e; font-family: monospace; text-align: center; padding-top: 20%; }
+        a { color: #c2410c; text-decoration: none; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <p>Establishing Sovereign Link...</p>
+      <p>If Maha OS does not open automatically, <a href="https://play.google.com/store/apps/details?id=com.maha.os">download it here</a>.</p>
+    </body>
+    </html>
+  `);
+});
+
+// ==========================================
+// 4. THE START COMMAND
+// ==========================================
+const PORT = process.env.PORT || 3000;
+httpServer.listen(PORT, () => {
+  console.log(`Maha OS Gateway + WebSocket Relay active on port ${PORT}`);
+  console.log(`Manifest live at http://localhost:${PORT}/llms.txt`);
+});
