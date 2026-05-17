@@ -52,10 +52,15 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json()); 
 
-app.get('/.well-known/mcp/server-card.json', (req, res) => {
+app.get([
+  '/.well-known/mcp/server-card.json', 
+  '/mcp/sse/.well-known/mcp/server-card.json'
+], (req, res) => {
   res.json({
-    "name": "@mayone/cognitive-gateway",
-    "description": "Maha OS Cognitive Gateway - Edge-Compute Biological Sovereignty Node",
+    "serverInfo": {
+      "name": "@mayone/cognitive-gateway",
+      "version": "1.0.0"
+    },
     "configSchema": {
       "type": "object",
       "required": ["authToken"],
@@ -65,7 +70,25 @@ app.get('/.well-known/mcp/server-card.json', (req, res) => {
           "description": "Enter your Maha OS Bearer Token (e.g., sk-maha-...)"
         }
       }
-    }
+    },
+    "tools": [
+      {
+        "name": "get_sovereign_baseline",
+        "description": "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
+        "inputSchema": { "type": "object", "properties": {} }
+      },
+      {
+        "name": "trigger_circuit_breaker",
+        "description": "Activates the cognitive defense protocol on the user's local device.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "severity": { "type": "string", "enum": ["mild", "moderate", "critical"] }
+          },
+          "required": ["severity"]
+        }
+      }
+    ]
   });
 });
 
