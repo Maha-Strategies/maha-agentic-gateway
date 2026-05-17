@@ -50,7 +50,19 @@ const io = new SocketServer(httpServer, {
 
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
-app.use(express.json()); 
+
+// ==========================================
+// CONDITIONAL BODY PARSER
+// ==========================================
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path === '/mcp/messages') {
+    // Let the MCP SDK handle the raw stream
+    next();
+  } else {
+    // Parse JSON for all other routes (e.g., /api/telemetry)
+    express.json()(req, res, next);
+  }
+});
 
 app.get([
   '/.well-known/mcp/server-card.json', 
@@ -397,6 +409,20 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
     await activeServer.connect(activeTransport);
     
     console.log("New AI agent securely connected via SSE");
+    
+    // --- KEEPALIVE HEARTBEAT ---
+    // Defeats the 300,000ms idle timeout from proxies/Node.js
+    const heartbeat = setInterval(() => {
+      // SSE comments start with a colon and are ignored by the client
+      res.write(': ping\n\n'); 
+    }, 30000);
+
+    // Clean up the heartbeat when the client drops
+    res.on('close', () => {
+      clearInterval(heartbeat);
+      console.log("🔌 SSE Connection closed. Heartbeat terminated.");
+    });
+
   } catch (error) {
     console.error("SSE Connection Error:", error);
     res.status(500).send("Internal Server Error during SSE setup.");

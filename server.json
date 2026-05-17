@@ -1,0 +1,10 @@
+{
+  "name": "com.maha-os/cognitive-gateway",
+  "description": "Maha OS Cognitive Gateway: Edge-compute biological sovereignty node for real-time biometric telemetry and cognitive circuit-breaking.",
+  "version": "1.0.0",
+  "source_url": "https://github.com/mayonerajan/maha-agentic-gateway",
+  "homepage": "https://mcp.maha-os.com/llms.txt",
+  "mcp_endpoint": "https://mcp.maha-os.com/mcp/sse",
+  "capabilities": ["get_sovereign_baseline", "trigger_circuit_breaker"],
+  "auth_type": "bearer"
+}
