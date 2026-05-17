@@ -52,6 +52,23 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json()); 
 
+app.get('/.well-known/mcp/server-card.json', (req, res) => {
+  res.json({
+    "name": "@mayone/cognitive-gateway",
+    "description": "Maha OS Cognitive Gateway - Edge-Compute Biological Sovereignty Node",
+    "configSchema": {
+      "type": "object",
+      "required": ["authToken"],
+      "properties": {
+        "authToken": {
+          "type": "string",
+          "description": "Enter your Maha OS Bearer Token (e.g., sk-maha-...)"
+        }
+      }
+    }
+  });
+});
+
 // ==========================================
 // 1. AUTHENTICATION MIDDLEWARE
 // ==========================================
