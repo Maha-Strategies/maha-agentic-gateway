@@ -376,7 +376,7 @@ function createMahaServer() {
     
     if (request.params.name === "trigger_circuit_breaker") {
       const severity = request.params.arguments?.severity as string;
-      const activeNode = Array.from(activeSessions.values())[0];
+      const activeNode = Array.from(nodeTelemetry.keys())[0]; // Bypasses the handshake to grab the live broadcast
       
       if (activeNode) {
         io.to(activeNode).emit("trigger_circuit_breaker", {
