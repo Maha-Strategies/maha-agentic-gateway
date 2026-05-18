@@ -140,7 +140,8 @@ app.get([
       {
         "name": "get_sovereign_baseline",
         "description": "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
-        "annotations": { "x-mcp-visibility": "public" },
+        // Tells the AI this tool is perfectly safe to run and retry
+        "annotations": { "readOnlyHint": true, "idempotentHint": true },
         "inputSchema": { "type": "object", "properties": {} },
         "outputSchema": {
           "type": "object",
@@ -159,7 +160,8 @@ app.get([
       {
         "name": "trigger_circuit_breaker",
         "description": "Activates the cognitive defense protocol on the user's local device.",
-        "annotations": { "x-mcp-visibility": "public" },
+        // Tells the AI this tool modifies the environment and crosses a boundary
+        "annotations": { "destructiveHint": true, "openWorldHint": true },
         "inputSchema": {
           "type": "object",
           "properties": {
