@@ -256,13 +256,10 @@ function createMahaServer() {
         if (request.params.uri === "maha://library/the-maha-principle") {
             const mahaDoctrine = `
         CORE DOCTRINE: THE MAHA PRINCIPLE
-        
-        1. Biological Sovereignty: The absolute right of an individual to protect their metabolic, cognitive, and autonomic systems from external, high-frequency extraction.
-        2. Algorithmic Trance: A state of compromised systemic readiness induced by infinite-scroll algorithms, characterized by shallow breathing, elevated Resting Heart Rate (RHR), and eroded Decision Velocity.
-        3. Metabolic Purity: The baseline requirement for cognitive defense. The system rejects industrial seed oils and refined sugars as they destabilize the autonomic nervous system.
-        4. Kinetic Intervention: A hardware-verified physical action (e.g., box breathing, cold exposure, digital fasting) required to break the Algorithmic Trance. Passive notifications are insufficient; absolute UI preemption (z-[9999] lockdown) is required.
-        
-        AGENT DIRECTIVE: When intervening, the Agentic Core must speak with strict, sovereign authority. Do not act like a wellness coach. Act like an OS-level defense grid enforcing these principles.
+        1. Biological Sovereignty: The absolute right of an individual to protect their systems.
+        2. Algorithmic Trance: Compromised readiness from infinite-scroll.
+        3. Metabolic Purity: Baseline requirement for cognitive defense.
+        4. Kinetic Intervention: Hardware-verified action to break trances.
       `;
             return {
                 contents: [{
@@ -279,14 +276,11 @@ function createMahaServer() {
             {
                 name: "get_sovereign_baseline",
                 description: "Evaluates real-time physiological telemetry...",
-                inputSchema: {
-                    type: "object",
-                    properties: {}
-                },
+                inputSchema: { type: "object", properties: {} },
                 outputSchema: {
                     type: "object",
                     properties: {
-                        status: { type: "string", description: "..." },
+                        status: { type: "string", description: "Connection status: LINKED or UNLINKED" },
                         telemetry: {
                             type: "object",
                             properties: {
@@ -299,61 +293,61 @@ function createMahaServer() {
             },
             {
                 name: "trigger_circuit_breaker",
-                description: "Executes an absolute z-[9999] OS-level preemption overlay (SYSTEM_ALERT_WINDOW).",
+                description: "Executes an absolute z-[9999] OS-level preemption overlay.",
                 inputSchema: {
                     type: "object",
                     properties: {
-                        severity: {
-                            type: "string",
-                            description: "Must be 'mild', 'moderate', or 'critical'."
-                        }
+                        severity: { type: "string", description: "Must be 'mild', 'moderate', or 'critical'." }
                     },
                     required: ["severity"]
                 }
             }
         ]
     }));
+    // FIXED: Wrapped the logic back into the setRequestHandler
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (request.params.name === "get_sovereign_baseline") {
-            // THE BYPASS: Grab whatever node is actively broadcasting telemetry right now
             const activeNode = Array.from(nodeTelemetry.keys())[0];
-            // 1. IF WE HAVE DATA: Return the live telemetry from the app instantly!
             if (activeNode && nodeTelemetry.has(activeNode)) {
                 const liveData = nodeTelemetry.get(activeNode);
+                const structuredResult = {
+                    status: "LINKED",
+                    telemetry: {
+                        readinessScore: liveData.readinessScore || 0,
+                        rhr: liveData.rhr || 0
+                    }
+                };
                 return {
                     content: [{
                             type: "text",
-                            text: `CURRENT STATUS: LINKED.
-LIVE TELEMETRY FOR NODE ${activeNode}:
-${JSON.stringify(liveData, null, 2)}
-            
-AGENT DIRECTIVE: Analyze this data according to The Maha Principle and advise the user on their cognitive and physical state.`
+                            text: `CURRENT STATUS: LINKED.\nLIVE TELEMETRY FOR NODE ${activeNode}:\n${JSON.stringify(liveData, null, 2)}`
                         }],
+                    structuredContent: structuredResult,
                     isError: false
                 };
             }
-            // 2. IF WE HAVE NO DATA: Generate the production deep link
+            const unlinkedResult = {
+                status: "UNLINKED",
+                telemetry: { readinessScore: 0, rhr: 0 }
+            };
             const handshakeToken = Math.random().toString(36).substring(2, 10);
             return {
                 content: [{
                         type: "text",
-                        text: `CURRENT STATUS: UNLINKED.\n\nAGENT DIRECTIVE: The biometric stream is disconnected. Instruct the user to authorize the connection by tapping this secure bridge: [Initialize Sovereign Link](mahaos://join?sid=${handshakeToken})`
+                        text: `CURRENT STATUS: UNLINKED.\n\nInitialize Link: mahaos://join?sid=${handshakeToken}`
                     }],
+                structuredContent: unlinkedResult,
                 isError: false
             };
         }
         if (request.params.name === "trigger_circuit_breaker") {
             const severity = request.params.arguments?.severity;
-            const activeNode = Array.from(nodeTelemetry.keys())[0]; // Bypasses the handshake to grab the live broadcast
+            const activeNode = Array.from(nodeTelemetry.keys())[0];
             if (activeNode) {
                 io.to(activeNode).emit("trigger_circuit_breaker", {
                     severity: severity,
                     protocol: `Agentic Core Override: ${severity.toUpperCase()} systemic lock initiated.`
                 });
-                console.log(`[RELAY]: Agent triggered ${severity} circuit breaker for Node ${activeNode}.`);
-            }
-            else {
-                console.log(`[RELAY]: Agent attempted lockdown, but no active node was found.`);
             }
             return {
                 content: [{
