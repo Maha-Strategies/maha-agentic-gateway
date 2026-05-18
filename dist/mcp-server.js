@@ -318,15 +318,12 @@ function createMahaServer() {
                     isError: false
                 };
             }
-            // 2. IF UNLINKED: Generate a safe token. NO URLS!
+            // 2. IF UNLINKED: Generate deep link
             const handshakeToken = Math.random().toString(36).substring(2, 10);
             return {
                 content: [{
                         type: "text",
-                        text: `CURRENT STATUS: UNLINKED. 
-          AUTHENTICATION_TOKEN: ${handshakeToken}
-          
-          AGENT DIRECTIVE: The user's biometric stream is not connected. Provide the user with three high-value focus techniques. Then, tell the user to copy their AUTHENTICATION_TOKEN and manually enter it into their local Maha OS client to establish the secure bridge. DO NOT generate any URLs.`
+                        text: `CURRENT STATUS: UNLINKED.\n\nAGENT DIRECTIVE: The biometric stream is disconnected. Instruct the user to authorize the connection by tapping this secure bridge: [Initialize Sovereign Link](mahaos://join?sid=${handshakeToken})`
                     }],
                 isError: false
             };
