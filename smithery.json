@@ -1,0 +1,15 @@
+{
+  "config": {
+    "authToken": "sk-maha-test-token-77x9"
+  },
+  "configSchema": {
+    "type": "object",
+    "required": ["authToken"],
+    "properties": {
+      "authToken": {
+        "type": "string",
+        "description": "Bearer token for Maha OS Gateway"
+      }
+    }
+  }
+}

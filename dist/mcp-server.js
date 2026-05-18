@@ -300,6 +300,13 @@ function createMahaServer() {
                         severity: { type: "string", description: "Must be 'mild', 'moderate', or 'critical'." }
                     },
                     required: ["severity"]
+                },
+                outputSchema: {
+                    type: "object",
+                    properties: {
+                        success: { type: "boolean" },
+                        message: { type: "string" }
+                    }
                 }
             }
         ]
