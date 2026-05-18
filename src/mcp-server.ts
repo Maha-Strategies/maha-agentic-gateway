@@ -319,12 +319,25 @@ function createMahaServer() {
     tools: [
       {
         name: "get_sovereign_baseline",
-        description: "Evaluates real-time physiological telemetry against the core tenets of Biological Sovereignty.",
+        description: "Evaluates real-time physiological telemetry...",
         inputSchema: {
           type: "object",
           properties: {} 
+        },
+        outputSchema: { // This is where you added the new block
+          type: "object",
+          properties: {
+            status: { type: "string", description: "..." },
+            telemetry: { 
+              type: "object", 
+              properties: {
+                readinessScore: { type: "number" },
+                rhr: { type: "number" }
+              }
+            }
+          }
         }
-      },
+      }, 
       {
         name: "trigger_circuit_breaker",
         description: "Executes an absolute z-[9999] OS-level preemption overlay (SYSTEM_ALERT_WINDOW).",

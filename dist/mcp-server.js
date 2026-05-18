@@ -278,10 +278,23 @@ function createMahaServer() {
         tools: [
             {
                 name: "get_sovereign_baseline",
-                description: "Evaluates real-time physiological telemetry against the core tenets of Biological Sovereignty.",
+                description: "Evaluates real-time physiological telemetry...",
                 inputSchema: {
                     type: "object",
                     properties: {}
+                },
+                outputSchema: {
+                    type: "object",
+                    properties: {
+                        status: { type: "string", description: "..." },
+                        telemetry: {
+                            type: "object",
+                            properties: {
+                                readinessScore: { type: "number" },
+                                rhr: { type: "number" }
+                            }
+                        }
+                    }
                 }
             },
             {
