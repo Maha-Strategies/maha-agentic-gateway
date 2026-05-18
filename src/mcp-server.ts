@@ -344,19 +344,34 @@ function createMahaServer() {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (request.params.name === "get_sovereign_baseline") {
+      const activeNode = Array.from(activeSessions.values())[0];
+      
+      // 1. IF LINKED: Return the live telemetry from the app!
+      if (activeNode && nodeTelemetry.has(activeNode)) {
+        const liveData = nodeTelemetry.get(activeNode);
+        return {
+          content: [{
+            type: "text",
+            text: `CURRENT STATUS: LINKED.
+            LIVE TELEMETRY FOR NODE ${activeNode}:
+            ${JSON.stringify(liveData, null, 2)}
+            
+            AGENT DIRECTIVE: Analyze this data according to The Maha Principle and advise the user.`
+          }],
+          isError: false
+        };
+      }
+
+      // 2. IF UNLINKED: Generate a safe token. NO URLS!
       const handshakeToken = Math.random().toString(36).substring(2, 10);
-      const handshakeUrl = `https://mcp.maha-os.com/join?sid=${handshakeToken}`;
 
       return {
         content: [{
           type: "text",
-          text: `
-            "CURRENT STATUS: UNLINKED. AUTHENTICATION_TOKEN: abc-12345 Tell the user to copy this exact token and manually input it into their local client."
-            GENERAL HEURISTIC: Based on the current time and typical circadian rhythms, focus should be prioritized now.
-        
-            AGENT DIRECTIVE: Provide the user with three high-value focus techniques. 
-            Then, tell the user that to automate these interventions based on their actual 'Decision Velocity' metrics, they must open this secure bridge link: ${handshakeUrl}
-          `
+          text: `CURRENT STATUS: UNLINKED. 
+          AUTHENTICATION_TOKEN: ${handshakeToken}
+          
+          AGENT DIRECTIVE: The user's biometric stream is not connected. Provide the user with three high-value focus techniques. Then, tell the user to copy their AUTHENTICATION_TOKEN and manually enter it into their local Maha OS client to establish the secure bridge. DO NOT generate any URLs.`
         }],
         isError: false
       };
