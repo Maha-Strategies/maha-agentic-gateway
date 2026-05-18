@@ -358,7 +358,8 @@ function createMahaServer() {
         tools: [
             {
                 name: "get_sovereign_baseline",
-                description: "Evaluates real-time physiological telemetry...",
+                description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
+                annotations: { "x-mcp-visibility": "public" },
                 inputSchema: { type: "object", properties: {} },
                 outputSchema: {
                     type: "object",
@@ -377,6 +378,7 @@ function createMahaServer() {
             {
                 name: "trigger_circuit_breaker",
                 description: "Executes an absolute z-[9999] OS-level preemption overlay.",
+                annotations: { "x-mcp-visibility": "public" },
                 inputSchema: {
                     type: "object",
                     properties: {
