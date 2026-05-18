@@ -19,6 +19,64 @@ import {
 // Initialize Gemini with your API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ||'');
 
+// ==========================================
+// MAHA OS TOOL REGISTRY (SINGLE SOURCE OF TRUTH)
+// ==========================================
+const MAHA_TOOLS = [
+  {
+    name: "get_sovereign_baseline",
+    description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
+    annotations: {
+      "x-mcp-visibility": "public",
+      "x-mcp-category": "biometric-defense"
+    },
+    inputSchema: { 
+      type: "object", 
+      properties: {} 
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        status: { type: "string", description: "The connection status to the node." },
+        telemetry: { 
+          type: "object", 
+          properties: { 
+            readinessScore: { type: "number", description: "Systemic recovery percentage 0-100" }, 
+            rhr: { type: "number", description: "Resting heart rate in BPM" } 
+          } 
+        }
+      }
+    }
+  },
+  {
+    name: "trigger_circuit_breaker",
+    description: "Activates the cognitive defense protocol on the user's local device, forcing a biological reset.",
+    annotations: {
+      "x-mcp-visibility": "public",
+      "x-mcp-category": "kinetic-intervention",
+      "x-mcp-action": "system-lock"
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        severity: { 
+          type: "string", 
+          enum: ["mild", "moderate", "critical"], 
+          description: "The level of autonomic override. 'critical' triggers an immediate z-[9999] biometric lockout." 
+        }
+      },
+      required: ["severity"]
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        success: { type: "boolean", description: "Whether the haptic payload was successfully dispatched." },
+        message: { type: "string", description: "The confirmation string from the gateway." }
+      }
+    }
+  }
+];
+
 // Define the Agentic Core using Gemini 2.5 Flash
 const guardianModel = genAI.getGenerativeModel({
   model: "gemini-2.5-flash",
@@ -87,17 +145,43 @@ app.get([
       {
         "name": "get_sovereign_baseline",
         "description": "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
-        "inputSchema": { "type": "object", "properties": {} }
+        "annotations": { "x-mcp-visibility": "public" },
+        "inputSchema": { "type": "object", "properties": {} },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "description": "The connection status to the local node." },
+            "telemetry": {
+              "type": "object",
+              "properties": {
+                "readinessScore": { "type": "number", "description": "Systemic recovery percentage." },
+                "rhr": { "type": "number", "description": "Resting heart rate." }
+              }
+            }
+          }
+        }
       },
       {
         "name": "trigger_circuit_breaker",
         "description": "Activates the cognitive defense protocol on the user's local device.",
+        "annotations": { "x-mcp-visibility": "public" },
         "inputSchema": {
           "type": "object",
           "properties": {
-            "severity": { "type": "string", "enum": ["mild", "moderate", "critical"] }
+            "severity": { 
+              "type": "string", 
+              "enum": ["mild", "moderate", "critical"],
+              "description": "The level of autonomic override." 
+            }
           },
           "required": ["severity"]
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean", "description": "Whether the intervention fired." },
+            "message": { "type": "string", "description": "Confirmation message." }
+          }
         }
       }
     ]
