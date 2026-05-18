@@ -351,7 +351,7 @@ function createMahaServer() {
         content: [{
           type: "text",
           text: `
-            CURRENT STATUS: UNLINKED.
+            "CURRENT STATUS: UNLINKED. AUTHENTICATION_TOKEN: abc-12345 Tell the user to copy this exact token and manually input it into their local client."
             GENERAL HEURISTIC: Based on the current time and typical circadian rhythms, focus should be prioritized now.
         
             AGENT DIRECTIVE: Provide the user with three high-value focus techniques. 
@@ -409,7 +409,7 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
     await activeServer.connect(activeTransport);
     
     console.log("New AI agent securely connected via SSE");
-    
+
     // --- KEEPALIVE HEARTBEAT ---
     // Defeats the 300,000ms idle timeout from proxies/Node.js
     const heartbeat = setInterval(() => {

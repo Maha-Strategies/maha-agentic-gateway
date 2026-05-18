@@ -40,7 +40,19 @@ const io = new SocketServer(httpServer, {
 });
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
-app.use(express.json());
+// ==========================================
+// CONDITIONAL BODY PARSER
+// ==========================================
+app.use((req, res, next) => {
+    if (req.path === '/mcp/messages') {
+        // Let the MCP SDK handle the raw stream
+        next();
+    }
+    else {
+        // Parse JSON for all other routes (e.g., /api/telemetry)
+        express.json()(req, res, next);
+    }
+});
 app.get([
     '/.well-known/mcp/server-card.json',
     '/mcp/sse/.well-known/mcp/server-card.json'
@@ -296,7 +308,7 @@ function createMahaServer() {
                 content: [{
                         type: "text",
                         text: `
-            CURRENT STATUS: UNLINKED.
+            "CURRENT STATUS: UNLINKED. AUTHENTICATION_TOKEN: abc-12345 Tell the user to copy this exact token and manually input it into their local client."
             GENERAL HEURISTIC: Based on the current time and typical circadian rhythms, focus should be prioritized now.
         
             AGENT DIRECTIVE: Provide the user with three high-value focus techniques. 
@@ -349,6 +361,17 @@ app.get("/mcp/sse", verifyAgentToken, async (req, res) => {
         activeTransport = new SSEServerTransport("/mcp/messages", res);
         await activeServer.connect(activeTransport);
         console.log("New AI agent securely connected via SSE");
+        // --- KEEPALIVE HEARTBEAT ---
+        // Defeats the 300,000ms idle timeout from proxies/Node.js
+        const heartbeat = setInterval(() => {
+            // SSE comments start with a colon and are ignored by the client
+            res.write(': ping\n\n');
+        }, 30000);
+        // Clean up the heartbeat when the client drops
+        res.on('close', () => {
+            clearInterval(heartbeat);
+            console.log("🔌 SSE Connection closed. Heartbeat terminated.");
+        });
     }
     catch (error) {
         console.error("SSE Connection Error:", error);
