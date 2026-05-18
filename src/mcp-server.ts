@@ -344,27 +344,27 @@ function createMahaServer() {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (request.params.name === "get_sovereign_baseline") {
-      const activeNode = Array.from(activeSessions.values())[0];
+      // THE BYPASS: Grab whatever node is actively broadcasting telemetry right now
+      const activeNode = Array.from(nodeTelemetry.keys())[0];
       
-      // 1. IF LINKED: Return the live telemetry from the app!
+      // 1. IF WE HAVE DATA: Return the live telemetry from the app instantly!
       if (activeNode && nodeTelemetry.has(activeNode)) {
         const liveData = nodeTelemetry.get(activeNode);
         return {
           content: [{
             type: "text",
             text: `CURRENT STATUS: LINKED.
-            LIVE TELEMETRY FOR NODE ${activeNode}:
-            ${JSON.stringify(liveData, null, 2)}
+LIVE TELEMETRY FOR NODE ${activeNode}:
+${JSON.stringify(liveData, null, 2)}
             
-            AGENT DIRECTIVE: Analyze this data according to The Maha Principle and advise the user.`
+AGENT DIRECTIVE: Analyze this data according to The Maha Principle and advise the user on their cognitive and physical state.`
           }],
           isError: false
         };
       }
 
-      // 2. IF UNLINKED: Generate deep link
+      // 2. IF WE HAVE NO DATA: Generate the production deep link
       const handshakeToken = Math.random().toString(36).substring(2, 10);
-
       return {
         content: [{
           type: "text",
