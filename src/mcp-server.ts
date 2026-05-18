@@ -26,10 +26,8 @@ const MAHA_TOOLS = [
   {
     name: "get_sovereign_baseline",
     description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
-    annotations: {
-      "x-mcp-visibility": "public",
-      "x-mcp-category": "biometric-defense"
-    },
+    // Tells the AI this tool is perfectly safe to run and retry
+    annotations: { "readOnlyHint": true, "idempotentHint": true },
     inputSchema: { 
       type: "object", 
       properties: {} 
@@ -51,11 +49,8 @@ const MAHA_TOOLS = [
   {
     name: "trigger_circuit_breaker",
     description: "Activates the cognitive defense protocol on the user's local device, forcing a biological reset.",
-    annotations: {
-      "x-mcp-visibility": "public",
-      "x-mcp-category": "kinetic-intervention",
-      "x-mcp-action": "system-lock"
-    },
+    // Tells the AI this tool modifies the environment and crosses a boundary
+    annotations: { "destructiveHint": true, "openWorldHint": true },
     inputSchema: {
       type: "object",
       properties: {
@@ -400,7 +395,8 @@ function createMahaServer() {
       {
         name: "get_sovereign_baseline",
         description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
-        annotations: { "audience": ["user", "assistant"], "priority": 1 },
+        // Tells the AI this tool is perfectly safe to run and retry
+        annotations: { "readOnlyHint": true, "idempotentHint": true },
         inputSchema: { type: "object", properties: {} },
         outputSchema: {
           type: "object",
@@ -419,7 +415,8 @@ function createMahaServer() {
       {
         name: "trigger_circuit_breaker",
         description: "Executes an absolute z-[9999] OS-level preemption overlay.",
-        annotations: { "audience": ["user", "assistant"], "priority": 1 },
+        // Tells the AI this tool modifies the environment and crosses a boundary
+        annotations: { "destructiveHint": true, "openWorldHint": true },
         inputSchema: {
           type: "object",
           properties: {
