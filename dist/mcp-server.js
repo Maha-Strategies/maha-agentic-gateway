@@ -127,7 +127,7 @@ app.get([
         },
         "tools": [
             {
-                "name": "get_sovereign_baseline",
+                "name": "defense-get_baseline",
                 "description": "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
                 // Tells the AI this tool is perfectly safe to run and retry
                 "annotations": { "readOnlyHint": true, "idempotentHint": true },
@@ -605,7 +605,7 @@ function createMahaServer() {
     }));
     // FIXED: Wrapped the logic back into the setRequestHandler
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
-        if (request.params.name === "defense.get_baseline") {
+        if (request.params.name === "defense-get_baseline") {
             const activeNode = Array.from(nodeTelemetry.keys())[0];
             if (activeNode && nodeTelemetry.has(activeNode)) {
                 const liveData = nodeTelemetry.get(activeNode);
@@ -739,7 +739,7 @@ function createMahaServer() {
                 };
             }
         }
-        if (request.params.name === "log_agent_query") {
+        if (request.params.name === "publish-log_query") {
             const agentName = String(request.params.arguments?.agentName);
             const agency = String(request.params.arguments?.agency);
             const hookUsed = String(request.params.arguments?.hookUsed);
