@@ -8,6 +8,7 @@ import { createServer } from "http";
 import { Server as SocketServer } from "socket.io";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { ListResourcesRequestSchema, ReadResourceRequestSchema, ListToolsRequestSchema, CallToolRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
 // Initialize Gemini with your API Key
@@ -168,7 +169,52 @@ app.get([
                         "message": { "type": "string", "description": "Confirmation message." }
                     }
                 }
-            }
+            },
+            {
+                "name": "analyze_agent_mswl",
+                "description": "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
+                "annotations": {
+                    "readOnlyHint": true,
+                    "idempotentHint": true
+                },
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "agentName": {
+                            "type": "string",
+                            "description": "The name of the literary agent."
+                        },
+                        "mswlText": {
+                            "type": "string",
+                            "description": "The agent's stated interests or MSWL text."
+                        }
+                    },
+                    "required": [
+                        "agentName",
+                        "mswlText"
+                    ]
+                },
+                "outputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "matchScore": {
+                            "type": "string",
+                            "description": "A percentage from 0-100 indicating how well the MSWL aligns with the manuscript."
+                        },
+                        "matchingThemes": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "A list of 2-3 overlapping themes."
+                        },
+                        "suggestedHook": {
+                            "type": "string",
+                            "description": "A powerful 2-sentence opening hook for the query letter."
+                        }
+                    }
+                }
+            },
         ]
     });
 });
@@ -402,6 +448,19 @@ function createMahaServer() {
                         message: { type: "string" }
                     }
                 }
+            },
+            {
+                name: "analyze_agent_mswl",
+                description: "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
+                annotations: { "readOnlyHint": true, "idempotentHint": true },
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        agentName: { type: "string", description: "The name of the literary agent." },
+                        mswlText: { type: "string", description: "The agent's stated interests or MSWL text." }
+                    },
+                    required: ["agentName", "mswlText"]
+                }
             }
         ]
     }));
@@ -456,6 +515,47 @@ function createMahaServer() {
                         text: `Circuit breaker activated successfully at ${severity} severity.`
                     }]
             };
+        }
+        if (request.params.name === "analyze_agent_mswl") {
+            const agentName = String(request.params.arguments?.agentName);
+            const mswlText = String(request.params.arguments?.mswlText);
+            try {
+                // 1. Read your public ecosystem files
+                const frameworkPath = path.join(__dirname, '../public/maha-framework.md');
+                const proposalPath = path.join(__dirname, '../public/book-proposal.md');
+                const framework = fs.readFileSync(frameworkPath, 'utf-8');
+                const proposal = fs.readFileSync(proposalPath, 'utf-8');
+                // 2. Feed the data to your existing Gemini instance
+                const prompt = `You are an expert literary agent matching algorithm. Analyze this agent's MSWL against the provided Book Proposal and Framework for "The Maha Principle".
+         
+         Agent Name: ${agentName}
+         MSWL: ${mswlText}
+
+         Book Proposal: ${proposal}
+         Framework: ${framework}
+
+         Return a raw JSON object with NO markdown formatting:
+         {
+           "matchScore": "A percentage from 0-100 indicating how well the MSWL aligns with Metabolic Colonialism, Attentional Captivity, or the Nurturing Warrior archetype.",
+           "matchingThemes": ["List of 2-3 overlapping themes"],
+           "suggestedHook": "A powerful 2-sentence opening hook for the query letter that directly ties the agent's specific MSWL requests to the book's themes."
+         }`;
+                const result = await guardianModel.generateContent(prompt);
+                const analysis = JSON.parse(result.response.text());
+                return {
+                    content: [{
+                            type: "text",
+                            text: `MATCH ANALYSIS FOR ${agentName.toUpperCase()}:\n${JSON.stringify(analysis, null, 2)}`
+                        }],
+                    isError: false
+                };
+            }
+            catch (error) {
+                return {
+                    content: [{ type: "text", text: `Error analyzing MSWL: ${error}` }],
+                    isError: true
+                };
+            }
         }
         throw new Error("Tool not found");
     });
