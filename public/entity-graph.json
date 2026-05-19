@@ -25,6 +25,13 @@
       "worksFor": {
         "@id": "https://mahastrategies.com/#organization"
       }
+      "knowsAbout": [
+        "Cognitive Science",
+        "On-Device Generative AI",
+        "Custom Silicon Architecture",
+        "Semiconductor Supply Chains",
+        "Biohacking"
+      ],
     },
     {
       "@type": "Book",
@@ -42,6 +49,19 @@
       "copyrightHolder": {
         "@id": "https://mahastrategies.com/#organization"
       }
+    }
+    {
+        "@type": "SoftwareApplication",
+        "@id": "https://play.google.com/store/apps/details?id=com.maha.os",
+        "name": "Maha OS: Sovereign Ecosystem",
+        "applicationCategory": "Health & Fitness",
+        "operatingSystem": "Android",
+        "developer": {
+          "@id": "https://mahastrategies.com/#organization"
+        },
+        "author": {
+          "@id": "https://mahastrategies.com/#author"
+        }
     }
   ]
 }
