@@ -159,7 +159,7 @@ app.get([
         }
       },
       {
-        "name": "defense.trigger_circuit_breaker",
+        "name": "defense-trigger_circuit_breaker",
         "description": "Activates the cognitive defense protocol on the user's local device.",
         // Tells the AI this tool modifies the environment and crosses a boundary
         "annotations": { "destructiveHint": true, "openWorldHint": true },
@@ -183,7 +183,7 @@ app.get([
         }
       },
       {
-        "name": "publish.analyze_mswl",
+        "name": "publish-analyze_mswl",
         "description": "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
         "annotations": {
           "readOnlyHint": true,
@@ -228,7 +228,7 @@ app.get([
         }
       },
       {
-        "name": "publish.generate_query",
+        "name": "publish-generate_query",
         "description": "Drafts a complete, professional query letter tailored to a specific literary agent using The Maha Principle ecosystem documents.",
         "annotations": {
           "readOnlyHint": true,
@@ -262,7 +262,7 @@ app.get([
         }
       },
       {
-        "name": "publish.log_query",
+        "name": "publish-log_query",
         "description": "Automatically logs a completed query submission into the local CRM tracking file.",
         "annotations": {
           "readOnlyHint": false,
@@ -301,7 +301,7 @@ app.get([
         }
       },
       {
-        "name": "publish.export_shunn",
+        "name": "publish-export_shunn",
         "description": "Formats a manuscript chapter into the strict Shunn Standard required by literary agents.",
         "annotations": {
           "readOnlyHint": true,
@@ -551,7 +551,7 @@ function createMahaServer() {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
       {
-        name: "defense.get_baseline",
+        name: "defense-get_baseline",
         description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
         // Tells the AI this tool is perfectly safe to run and retry
         annotations: { "readOnlyHint": true, "idempotentHint": true },
@@ -571,7 +571,7 @@ function createMahaServer() {
         }
       }, 
       {
-        name: "defense.trigger_circuit_breaker",
+        name: "defense-trigger_circuit_breaker",
         description: "Executes an absolute z-[9999] OS-level preemption overlay.",
         // Tells the AI this tool modifies the environment and crosses a boundary
         annotations: { "destructiveHint": true, "openWorldHint": true },
@@ -591,7 +591,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "publish.analyze_mswl",
+      name: "publish-analyze_mswl",
       description: "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
       annotations: { "readOnlyHint": true, "idempotentHint": true },
       inputSchema: {
@@ -617,7 +617,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "publish.log_query",
+      name: "publish-log_query",
       description: "Automatically logs a completed query submission into the local CRM tracking file.",
       annotations: { readOnlyHint: false, idempotentHint: false },
       inputSchema: {
@@ -631,7 +631,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "publish.export_shunn",
+      name: "publish-export_shunn",
       description: "Formats a manuscript chapter into the strict Shunn Standard required by literary agents.",
       annotations: { "readOnlyHint": true, "idempotentHint": true },
       inputSchema: {
@@ -686,7 +686,7 @@ function createMahaServer() {
       };
     } 
     
-    if (request.params.name === "defense.trigger_circuit_breaker") {
+    if (request.params.name === "defense-trigger_circuit_breaker") {
       const severity = request.params.arguments?.severity as string;
       const activeNode = Array.from(nodeTelemetry.keys())[0];
       
@@ -705,7 +705,7 @@ function createMahaServer() {
       };
     }
 
-    if (request.params.name === "publish.analyze_mswl") {
+    if (request.params.name === "publish-analyze_mswl") {
       const agentName = String(request.params.arguments?.agentName);
       const mswlText = String(request.params.arguments?.mswlText);
 
@@ -751,7 +751,7 @@ function createMahaServer() {
       }
     }
 
-    if (request.params.name === "publish.generate_query") {
+    if (request.params.name === "publish-generate_query") {
       const agentName = String(request.params.arguments?.agentName);
       const suggestedHook = String(request.params.arguments?.suggestedHook);
 
@@ -832,7 +832,7 @@ function createMahaServer() {
       }
     }
 
-    if (request.params.name === "publish.export_shunn") {
+    if (request.params.name === "publish-export_shunn") {
       const chapterNum = Number(request.params.arguments?.chapterNumber);
 
       try {
