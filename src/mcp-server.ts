@@ -379,6 +379,16 @@ function createMahaServer() {
         2. Algorithmic Trance: Compromised readiness from infinite-scroll.
         3. Metabolic Purity: Baseline requirement for cognitive defense.
         4. Kinetic Intervention: Hardware-verified action to break trances.
+
+        STRUCTURAL BLUEPRINT
+        Part I: The Diagnosis - The Architecture of Unhealth (Chapters 1-3)
+        [span_3](start_span)Systematically deconstructs the three interlocking crises of the modern malaise[span_3](end_span)[span_4](start_span): the poisoned body (Metabolic Colonialism)[span_4](end_span)[span_5](start_span), the addicted mind (Attentional Captivity)[span_5](end_span)[span_6](start_span), and the starving spirit (Existential Fragmentation)[span_6](end_span).
+
+        Part II: The Doctrine - The Five Principles of the Architect King (Chapters 4-8)
+        [span_7](start_span)Provides the core operating manual for personal and societal renewal[span_7](end_span). [span_8](start_span)Equips the 'Nurturing Warrior' archetype with five principles to lead[span_8](end_span)[span_9](start_span)[span_10](start_span)[span_11](start_span)[span_12](start_span)[span_13](start_span): Competence, Strategy, Humane Governance, Navigating Complexity, and Vision (Rooted Modernization)[span_9](end_span)[span_10](end_span)[span_11](end_span)[span_12](end_span)[span_13](end_span).
+
+        Part III: The Application - Building a Healthy Nation (Chapters 9-11)
+        [span_14](start_span)Translates philosophy into a tangible, multi-scalar blueprint[span_14](end_span). [span_15](start_span)Moves from the daily practice of sovereignty within the individual microsystem[span_15](end_span)[span_16](start_span), to weaving resilient local communities[span_16](end_span)[span_17](start_span), and finally architecting national policy based on generational trust[span_17](end_span).
       `;
 
       return {
