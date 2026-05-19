@@ -249,6 +249,45 @@ app.get([
                     }
                 }
             },
+            {
+                "name": "log_agent_query",
+                "description": "Automatically logs a completed query submission into the local CRM tracking file.",
+                "annotations": {
+                    "readOnlyHint": false,
+                    "idempotentHint": false
+                },
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "agentName": {
+                            "type": "string",
+                            "description": "The name of the literary agent."
+                        },
+                        "agency": {
+                            "type": "string",
+                            "description": "The name of the literary agency."
+                        },
+                        "hookUsed": {
+                            "type": "string",
+                            "description": "The specific hook or angle used in the pitch."
+                        }
+                    },
+                    "required": [
+                        "agentName",
+                        "agency",
+                        "hookUsed"
+                    ]
+                },
+                "outputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "success": {
+                            "type": "boolean",
+                            "description": "Whether the log was successfully recorded."
+                        }
+                    }
+                }
+            },
         ]
     });
 });
@@ -509,6 +548,20 @@ function createMahaServer() {
                     required: ["agentName", "suggestedHook"]
                 }
             },
+            {
+                name: "log_agent_query",
+                description: "Automatically logs a completed query submission into the local CRM tracking file.",
+                annotations: { readOnlyHint: false, idempotentHint: false },
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        agentName: { type: "string" },
+                        agency: { type: "string" },
+                        hookUsed: { type: "string" }
+                    },
+                    required: ["agentName", "agency", "hookUsed"]
+                }
+            },
         ]
     }));
     // FIXED: Wrapped the logic back into the setRequestHandler
@@ -640,6 +693,37 @@ function createMahaServer() {
             catch (error) {
                 return {
                     content: [{ type: "text", text: `Error generating query: ${error}` }],
+                    isError: true
+                };
+            }
+        }
+        if (request.params.name === "log_agent_query") {
+            const agentName = String(request.params.arguments?.agentName);
+            const agency = String(request.params.arguments?.agency);
+            const hookUsed = String(request.params.arguments?.hookUsed);
+            try {
+                const logPath = path.join(__dirname, '../public/query_log.csv');
+                const date = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
+                // Create the file with headers if it doesn't exist yet
+                if (!fs.existsSync(logPath)) {
+                    fs.writeFileSync(logPath, 'Date,Agent Name,Agency,Status,Hook Used\n');
+                }
+                // Clean the hook text to ensure it doesn't break CSV formatting
+                const safeHook = `"${hookUsed.replace(/"/g, '""')}"`;
+                const newRow = `${date},${agentName},${agency},Queried,${safeHook}\n`;
+                // Append the new query to the ledger
+                fs.appendFileSync(logPath, newRow);
+                return {
+                    content: [{
+                            type: "text",
+                            text: `SUCCESS: Query submission to ${agentName} at ${agency} has been logged to query_log.csv.`
+                        }],
+                    isError: false
+                };
+            }
+            catch (error) {
+                return {
+                    content: [{ type: "text", text: `Error logging query: ${error}` }],
                     isError: true
                 };
             }
