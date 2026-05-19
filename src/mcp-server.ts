@@ -604,7 +604,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "generate_targeted_query",
+      name: "publish-generate_query",
       description: "Drafts a complete, professional query letter tailored to a specific literary agent using The Maha Principle ecosystem documents.",
       annotations: { "readOnlyHint": true, "idempotentHint": true },
       inputSchema: {
@@ -756,10 +756,14 @@ function createMahaServer() {
       const suggestedHook = String(request.params.arguments?.suggestedHook);
 
       try {
-         // Read your public ecosystem files to ground the AI in reality
          const proposalPath = path.join(__dirname, '../public/book-proposal.md');
          const dossierPath = path.join(__dirname, '../public/author-dossier.md');
          
+         // Verify files exist before reading
+         if (!fs.existsSync(proposalPath) || !fs.existsSync(dossierPath)) {
+           throw new Error("Missing book-proposal.md or author-dossier.md in public folder.");
+         }
+
          const proposal = fs.readFileSync(proposalPath, 'utf-8');
          const dossier = fs.readFileSync(dossierPath, 'utf-8');
 
@@ -773,13 +777,14 @@ function createMahaServer() {
          Use the following Author Dossier to write the biographical paragraph. Ensure you mention the author's background in Cognitive Science, the corporate infrastructure of Maha Strategies LLC, and the functioning com.maha.os application.
          Author Dossier: ${dossier}
 
-         Return a raw JSON object with NO markdown formatting:
-         {
-           "queryLetter": "The complete text of the query letter, properly spaced and formatted with a professional sign-off."
-         }`;
+         IMPORTANT: Return ONLY a raw JSON object with this key: {"queryLetter": "full text"}`;
 
          const result = await guardianModel.generateContent(prompt);
-         const draft = JSON.parse(result.response.text());
+         const rawText = result.response.text();
+         
+         // Safety: Strip markdown code blocks if the LLM includes them
+         const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+         const draft = JSON.parse(cleanJson);
 
          return {
             content: [{ 
@@ -788,12 +793,12 @@ function createMahaServer() {
             }],
             isError: false
          };
-      } catch (error) {
-         return {
-            content: [{ type: "text", text: `Error generating query: ${error}` }],
-            isError: true
-         };
-      }
+        } catch (error) {
+          return {
+             content: [{ type: "text", text: `Error generating query: ${(error as Error).message}` }],
+             isError: true
+          };
+       }
     }
 
     if (request.params.name === "log_agent_query") {
