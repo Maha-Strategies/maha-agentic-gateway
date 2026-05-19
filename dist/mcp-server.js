@@ -288,6 +288,33 @@ app.get([
                     }
                 }
             },
+            {
+                "name": "export_shunn_chapter",
+                "description": "Formats a manuscript chapter into the strict Shunn Standard required by literary agents.",
+                "annotations": {
+                    "readOnlyHint": true,
+                    "idempotentHint": true
+                },
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "chapterNumber": {
+                            "type": "number",
+                            "description": "The chapter number to format."
+                        }
+                    },
+                    "required": ["chapterNumber"]
+                },
+                "outputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "formattedText": {
+                            "type": "string",
+                            "description": "The chapter text formatted in Shunn Standard (Double-spaced, 12pt reference)."
+                        }
+                    }
+                }
+            },
         ]
     });
 });
@@ -562,6 +589,18 @@ function createMahaServer() {
                     required: ["agentName", "agency", "hookUsed"]
                 }
             },
+            {
+                name: "export_shunn_chapter",
+                description: "Formats a manuscript chapter into the strict Shunn Standard required by literary agents.",
+                annotations: { "readOnlyHint": true, "idempotentHint": true },
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        chapterNumber: { type: "number" }
+                    },
+                    required: ["chapterNumber"]
+                }
+            },
         ]
     }));
     // FIXED: Wrapped the logic back into the setRequestHandler
@@ -724,6 +763,38 @@ function createMahaServer() {
             catch (error) {
                 return {
                     content: [{ type: "text", text: `Error logging query: ${error}` }],
+                    isError: true
+                };
+            }
+        }
+        if (request.params.name === "export_shunn_chapter") {
+            const chapterNum = Number(request.params.arguments?.chapterNumber);
+            try {
+                const frameworkPath = path.join(__dirname, '../public/maha-framework.md');
+                const framework = fs.readFileSync(frameworkPath, 'utf-8');
+                const prompt = `You are an expert manuscript formatter. Using the structure in this framework:
+        
+        ${framework}
+
+        1. Identify the title and themes for Chapter ${chapterNum}.
+        2. Format a placeholder 'Sample Page' for this chapter in strict Shunn Standard.
+        3. [span_3](start_span)Include the Author details: Mayone Maha Rajan, Maha Strategies LLC, Cheyenne, WY[span_3](end_span).
+        4. [span_4](start_span)Use double-spacing markers and ensure the word count is noted as ~99,000[span_4](end_span).
+
+        Return a raw JSON object:
+        {
+          "formattedText": "The fully formatted Shunn-compliant chapter header and first page."
+        }`;
+                const result = await guardianModel.generateContent(prompt);
+                const formatted = JSON.parse(result.response.text());
+                return {
+                    content: [{ type: "text", text: formatted.formattedText }],
+                    isError: false
+                };
+            }
+            catch (error) {
+                return {
+                    content: [{ type: "text", text: `Error formatting chapter: ${error}` }],
                     isError: true
                 };
             }
