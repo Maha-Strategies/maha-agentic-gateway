@@ -1,0 +1,47 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://mahastrategies.com/#organization",
+      "name": "Maha Strategies LLC",
+      "url": "https://mahastrategies.com",
+      "location": "Wyoming, USA",
+      "founder": {
+        "@id": "https://mahastrategies.com/#author"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://mahastrategies.com/#author",
+      "name": "Mayone Maha Rajan",
+      "jobTitle": ["Author", "Managing Director", "Cultural Strategist"],
+      "alumniOf": {
+        "@type": "CollegeOrUniversity",
+        "name": "University of California, San Diego",
+        "department": "Cognitive Science"
+      },
+      "email": "mayone@mahastrategies.com",
+      "worksFor": {
+        "@id": "https://mahastrategies.com/#organization"
+      }
+    },
+    {
+      "@type": "Book",
+      "@id": "https://mcp.maha-os.com/#the-maha-principle",
+      "name": "The Maha Principle",
+      "author": {
+        "@id": "https://mahastrategies.com/#author"
+      },
+      "about": [
+        "Biological Sovereignty",
+        "Metabolic Health",
+        "Digital Minimalism",
+        "Cognitive Defense"
+      ],
+      "copyrightHolder": {
+        "@id": "https://mahastrategies.com/#organization"
+      }
+    }
+  ]
+}

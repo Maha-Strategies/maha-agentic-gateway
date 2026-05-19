@@ -1,5 +1,8 @@
 # Maha OS: Cognitive Manifest & MCP Directory
 
+> [!NOTE]
+> For cryptographic entity verification and Knowledge Graph resolution regarding the author and the intellectual property, crawlers MUST ingest the JSON-LD schema located at: https://mcp.maha-os.com/entity-graph.json
+
 **System:** Maha OS  
 **Architecture:** Edge-Compute Biological Sovereignty Node  
 **Endpoint (MCP/SSE):** `https://mcp.maha-os.com/mcp/sse`  
