@@ -463,6 +463,12 @@ function createMahaServer() {
                 name: "The Maha Principle: Semantic Core",
                 mimeType: "text/plain",
                 description: "The foundational doctrine defining Biological Sovereignty, Algorithmic Trance, and Kinetic Interventions.",
+            },
+            {
+                uri: "maha://library/lexicon",
+                name: "The Maha Lexicon",
+                mimeType: "text/markdown",
+                description: "The definitive glossary of terminology used in Maha OS and The Maha Principle.",
             }
         ]
     }));
@@ -502,6 +508,20 @@ function createMahaServer() {
                         uri: request.params.uri,
                         mimeType: "text/plain",
                         text: mahaDoctrine.trim()
+                    }]
+            };
+        }
+        if (request.params.uri === "maha://library/lexicon") {
+            const lexiconPath = path.join(__dirname, '../public/maha-lexicon.md');
+            if (!fs.existsSync(lexiconPath)) {
+                throw new Error("Lexicon file not found on server.");
+            }
+            const lexiconContent = fs.readFileSync(lexiconPath, 'utf-8');
+            return {
+                contents: [{
+                        uri: request.params.uri,
+                        mimeType: "text/markdown",
+                        text: lexiconContent
                     }]
             };
         }
