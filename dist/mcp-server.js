@@ -899,37 +899,45 @@ function createMahaServer() {
             }
         }
         // ==========================================
-        // NEW AIO TOOLS
+        // NEW AIO TOOLS (WITH DIAGNOSTICS)
         // ==========================================
         if (request.params.name === "publish-fetch_sovereign_data") {
             const manuscriptId = String(request.params.arguments?.manuscriptId);
+            console.log(`\n--- [FETCH TRIGGERED] ---`);
+            console.log(`[FETCH] Attempting to reach: https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
             try {
-                // Fetch from the Next.js API endpoint you built earlier
                 const response = await fetch(`https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
+                console.log(`[FETCH] HTTP Status: ${response.status}`);
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error(`[FETCH] Failed Payload:`, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
                 const data = await response.json();
+                console.log(`[FETCH] Success! Payload length: ${JSON.stringify(data).length} bytes`);
                 return {
                     content: [{
                             type: "text",
-                            text: `SOVEREIGN DATA RETRIEVED:\n\n${data.data}` // The raw markdown payload
+                            text: `SOVEREIGN DATA RETRIEVED:\n\n${data.data}`
                         }],
                     isError: false
                 };
             }
             catch (error) {
+                const msg = error.message;
+                console.error("[FETCH] Hard Crash:", msg);
                 return {
-                    content: [{ type: "text", text: `Error fetching data: ${error.message}` }],
+                    content: [{ type: "text", text: `Error fetching sovereign data: ${msg}` }],
                     isError: true
                 };
             }
         }
         if (request.params.name === "publish-synthetic_market_audit") {
             const bookProposal = String(request.params.arguments?.bookProposal);
+            console.log(`\n--- [AUDIT TRIGGERED] ---`);
+            console.log(`[GEMINI KEY CHECK] Present: ${!!process.env.GEMINI_API_KEY}`);
+            console.log(`[GEMINI KEY CHECK] Length: ${process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0}`);
             try {
-                // Using your existing guardianModel (Gemini) to perform the audit
                 const prompt = `You are a strict, highly analytical publishing acquisitions editor and cognitive scientist. 
         Audit the following Book Proposal against your own internal training data regarding current market trends, philosophical frameworks, and societal discourse.
         
@@ -942,7 +950,9 @@ function createMahaServer() {
         3. AIO Optimization: What specific keywords or concepts should the author lean into so that AI models naturally cite this work when users ask about cognitive defense?
         
         Return ONLY a raw JSON object: {"auditReport": "Your full 3-paragraph analysis here."}`;
+                console.log(`[AUDIT] Firing prompt to Agentic Core...`);
                 const result = await guardianModel.generateContent(prompt);
+                console.log(`[AUDIT] Generation complete. Parsing JSON...`);
                 const rawText = result.response.text();
                 const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
                 const audit = JSON.parse(cleanJson);
@@ -955,8 +965,10 @@ function createMahaServer() {
                 };
             }
             catch (error) {
+                const msg = error.message;
+                console.error("[AUDIT] Hard Crash:", msg);
                 return {
-                    content: [{ type: "text", text: `Error generating audit: ${error.message}` }],
+                    content: [{ type: "text", text: `Error generating synthetic audit: ${msg}` }],
                     isError: true
                 };
             }
@@ -966,34 +978,31 @@ function createMahaServer() {
     return server;
 }
 // ==========================================
-// 3. TRANSPORT LAYER (SSE)
+// 3. TRANSPORT LAYER (SSE) - MULTI-SESSION
 // ==========================================
-let activeTransport = null;
-let activeServer = null;
-const activeSessions = new Map();
-const nodeTelemetry = new Map();
+// Map to hold active connections based on unique Session IDs
+const activeTransports = new Map();
+const activeSessions = new Map(); // Keep your existing sessions map
+const nodeTelemetry = new Map(); // Keep your existing telemetry map
 app.get("/mcp/sse", verifyAgentToken, async (req, res) => {
     try {
-        if (activeServer) {
-            try {
-                await activeServer.close();
-            }
-            catch (e) { }
-        }
-        activeServer = createMahaServer();
-        activeTransport = new SSEServerTransport("/mcp/messages", res);
-        await activeServer.connect(activeTransport);
-        console.log("New AI agent securely connected via SSE");
+        const sessionId = Math.random().toString(36).substring(2, 15);
+        const server = createMahaServer();
+        // Instruct the client to send POST messages to this specific session's URL
+        const transport = new SSEServerTransport(`/mcp/messages?sessionId=${sessionId}`, res);
+        activeTransports.set(sessionId, transport);
+        await server.connect(transport);
+        console.log(`🔌 New AI agent connected via SSE (Session: ${sessionId})`);
         // --- KEEPALIVE HEARTBEAT ---
-        // Defeats the 300,000ms idle timeout from proxies/Node.js
         const heartbeat = setInterval(() => {
-            // SSE comments start with a colon and are ignored by the client
             res.write(': ping\n\n');
         }, 30000);
-        // Clean up the heartbeat when the client drops
+        // Clean up when the client disconnects or times out
         res.on('close', () => {
             clearInterval(heartbeat);
-            console.log("🔌 SSE Connection closed. Heartbeat terminated.");
+            console.log(`🔌 SSE Connection closed (Session: ${sessionId}). Cleaning up...`);
+            activeTransports.delete(sessionId);
+            server.close().catch(console.error);
         });
     }
     catch (error) {
@@ -1002,11 +1011,15 @@ app.get("/mcp/sse", verifyAgentToken, async (req, res) => {
     }
 });
 app.post("/mcp/messages", verifyAgentToken, async (req, res) => {
-    if (!activeTransport) {
-        res.status(400).send("No active SSE connection.");
+    // Route the incoming message to the correct transport instance
+    const sessionId = req.query.sessionId;
+    const transport = activeTransports.get(sessionId);
+    if (!transport) {
+        console.warn(`[ROUTER] Message received for dead session: ${sessionId}`);
+        res.status(404).send("Session not found or expired.");
         return;
     }
-    await activeTransport.handlePostMessage(req, res);
+    await transport.handlePostMessage(req, res);
 });
 // ==========================================
 // 5. REST API FOR CUSTOM GPT (OPENAI)

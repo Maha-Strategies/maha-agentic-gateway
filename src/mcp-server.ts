@@ -1003,12 +1003,14 @@ function createMahaServer() {
           isError: false
         };
       } catch (error) {
-        console.error("[FETCH] Hard Crash:", error);
-        // Force the hard throw so Claude registers the failure properly
-        throw new Error(`Error fetching sovereign data: ${(error as Error).message}`);
+        const msg = (error as Error).message;
+        console.error("[FETCH] Hard Crash:", msg);
+        return {
+          content: [{ type: "text", text: `Error fetching sovereign data: ${msg}` }],
+          isError: true
+        };
       }
     }
-
     if (request.params.name === "publish-synthetic_market_audit") {
       const bookProposal = String(request.params.arguments?.bookProposal);
       console.log(`\n--- [AUDIT TRIGGERED] ---`);
@@ -1045,10 +1047,14 @@ function createMahaServer() {
           isError: false
         };
       } catch (error) {
-        console.error("[AUDIT] Hard Crash:", error);
-        throw new Error(`Error generating synthetic audit: ${(error as Error).message}`);
+        const msg = (error as Error).message;
+        console.error("[AUDIT] Hard Crash:", msg);
+        return {
+          content: [{ type: "text", text: `Error generating synthetic audit: ${msg}` }],
+          isError: true
+        };
       }
-    }
+    } 
     throw new Error("Tool not found");
   });
 
@@ -1056,37 +1062,38 @@ function createMahaServer() {
 }
 
 // ==========================================
-// 3. TRANSPORT LAYER (SSE)
+// 3. TRANSPORT LAYER (SSE) - MULTI-SESSION
 // ==========================================
-let activeTransport: SSEServerTransport | null = null;
-let activeServer: Server | null = null;
+// Map to hold active connections based on unique Session IDs
+const activeTransports = new Map<string, SSEServerTransport>();
 
-const activeSessions = new Map<string, string>();
-const nodeTelemetry = new Map<string, any>();
+const activeSessions = new Map<string, string>(); // Keep your existing sessions map
+const nodeTelemetry = new Map<string, any>(); // Keep your existing telemetry map
 
 app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
   try {
-    if (activeServer) {
-      try { await activeServer.close(); } catch (e) {}
-    }
+    const sessionId = Math.random().toString(36).substring(2, 15);
+    const server = createMahaServer();
     
-    activeServer = createMahaServer();
-    activeTransport = new SSEServerTransport("/mcp/messages", res);
-    await activeServer.connect(activeTransport);
+    // Instruct the client to send POST messages to this specific session's URL
+    const transport = new SSEServerTransport(`/mcp/messages?sessionId=${sessionId}`, res);
     
-    console.log("New AI agent securely connected via SSE");
+    activeTransports.set(sessionId, transport);
+    await server.connect(transport);
+    
+    console.log(`🔌 New AI agent connected via SSE (Session: ${sessionId})`);
 
     // --- KEEPALIVE HEARTBEAT ---
-    // Defeats the 300,000ms idle timeout from proxies/Node.js
     const heartbeat = setInterval(() => {
-      // SSE comments start with a colon and are ignored by the client
       res.write(': ping\n\n'); 
     }, 30000);
 
-    // Clean up the heartbeat when the client drops
+    // Clean up when the client disconnects or times out
     res.on('close', () => {
       clearInterval(heartbeat);
-      console.log("🔌 SSE Connection closed. Heartbeat terminated.");
+      console.log(`🔌 SSE Connection closed (Session: ${sessionId}). Cleaning up...`);
+      activeTransports.delete(sessionId);
+      server.close().catch(console.error);
     });
 
   } catch (error) {
@@ -1096,11 +1103,17 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
 });
 
 app.post("/mcp/messages", verifyAgentToken, async (req: Request, res: Response) => {
-  if (!activeTransport) {
-      res.status(400).send("No active SSE connection.");
+  // Route the incoming message to the correct transport instance
+  const sessionId = req.query.sessionId as string;
+  const transport = activeTransports.get(sessionId);
+
+  if (!transport) {
+      console.warn(`[ROUTER] Message received for dead session: ${sessionId}`);
+      res.status(404).send("Session not found or expired.");
       return;
   }
-  await activeTransport.handlePostMessage(req, res);
+
+  await transport.handlePostMessage(req, res);
 });
 
 // ==========================================
