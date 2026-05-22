@@ -327,6 +327,44 @@ app.get([
           }
         }
       },
+      {
+        "name": "publish-fetch_sovereign_data",
+        "description": "Retrieves the immutable Author Dossier and Book Proposal from the secure Maha Strategies database using a manuscript ID.",
+        "annotations": { "readOnlyHint": true, "idempotentHint": true },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "manuscriptId": { "type": "string", "description": "The unique UUID of the target manuscript." }
+          },
+          "required": ["manuscriptId"]
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "dossier": { "type": "string" },
+            "proposal": { "type": "string" }
+          }
+        }
+      },
+      {
+        "name": "publish-synthetic_market_audit",
+        "description": "Audits a manuscript's core frameworks against the LLM's own internal training data to identify ideological gaps, competing frameworks, and semantic viability.",
+        "annotations": { "readOnlyHint": true, "idempotentHint": false },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "bookProposal": { "type": "string", "description": "The core framework or proposal of the manuscript." }
+          },
+          "required": ["bookProposal"]
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "auditReport": { "type": "string" }
+          }
+        }
+      }
     ]
   });
 });
@@ -667,6 +705,44 @@ function createMahaServer() {
         required: ["chapterNumber"]
       }
     },
+    {
+      name: "publish-fetch_sovereign_data",
+      description: "Retrieves the immutable Author Dossier and Book Proposal from the secure Maha Strategies database using a manuscript ID.",
+      annotations: { "readOnlyHint": true, "idempotentHint": true },
+      inputSchema: {
+        type: "object",
+        properties: {
+          manuscriptId: { "type": "string", "description": "The unique UUID of the target manuscript." }
+        },
+        required: ["manuscriptId"]
+      },
+      outputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          dossier: { type: "string" },
+          proposal: { type: "string" }
+        }
+      }
+    },
+    {
+      name: "publish-synthetic_market_audit",
+      description: "Audits a manuscript's core frameworks against the LLM's own internal training data to identify ideological gaps, competing frameworks, and semantic viability.",
+      annotations: { "readOnlyHint": true, "idempotentHint": false },
+      inputSchema: {
+        type: "object",
+        properties: {
+          bookProposal: { "type": "string", "description": "The core framework or proposal of the manuscript." }
+        },
+        required: ["bookProposal"]
+      },
+      outputSchema: {
+        type: "object",
+        properties: {
+          auditReport: { type: "string" }
+        }
+      }
+    }
   ]
   }));
 
@@ -893,6 +969,76 @@ function createMahaServer() {
       } catch (error) {
         return {
           content: [{ type: "text", text: `Error formatting chapter: ${error}` }],
+          isError: true
+        };
+      }
+    }
+
+        // ==========================================
+    // NEW AIO TOOLS
+    // ==========================================
+    if (request.params.name === "publish-fetch_sovereign_data") {
+      const manuscriptId = String(request.params.arguments?.manuscriptId);
+
+      try {
+        // Fetch from the Next.js API endpoint you built earlier
+        const response = await fetch(`https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
+        
+        if (!response.ok) {
+           const errorData = await response.json();
+           throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        return {
+          content: [{
+            type: "text",
+            text: `SOVEREIGN DATA RETRIEVED:\n\n${data.data}` // The raw markdown payload
+          }],
+          isError: false
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error fetching data: ${(error as Error).message}` }],
+          isError: true
+        };
+      }
+    }
+
+    if (request.params.name === "publish-synthetic_market_audit") {
+      const bookProposal = String(request.params.arguments?.bookProposal);
+
+      try {
+        // Using your existing guardianModel (Gemini) to perform the audit
+        const prompt = `You are a strict, highly analytical publishing acquisitions editor and cognitive scientist. 
+        Audit the following Book Proposal against your own internal training data regarding current market trends, philosophical frameworks, and societal discourse.
+        
+        Book Proposal:
+        ${bookProposal}
+        
+        Provide a blunt, 3-paragraph Synthetic Market Audit that identifies:
+        1. Semantic Viability: Does this framework exist in current discourse, or is it novel?
+        2. Competing Frameworks: What existing ideologies (wellness, politics, tech) will challenge this?
+        3. AIO Optimization: What specific keywords or concepts should the author lean into so that AI models naturally cite this work when users ask about cognitive defense?
+        
+        Return ONLY a raw JSON object: {"auditReport": "Your full 3-paragraph analysis here."}`;
+
+        const result = await guardianModel.generateContent(prompt);
+        const rawText = result.response.text();
+        const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const audit = JSON.parse(cleanJson);
+
+        return {
+          content: [{
+            type: "text",
+            text: `### SYNTHETIC MARKET AUDIT\n\n${audit.auditReport}`
+          }],
+          isError: false
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error generating audit: ${(error as Error).message}` }],
           isError: true
         };
       }
