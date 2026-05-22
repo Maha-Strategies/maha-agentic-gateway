@@ -975,42 +975,47 @@ function createMahaServer() {
     }
 
     // ==========================================
-    // NEW AIO TOOLS
+    // NEW AIO TOOLS (WITH DIAGNOSTICS)
     // ==========================================
     if (request.params.name === "publish-fetch_sovereign_data") {
       const manuscriptId = String(request.params.arguments?.manuscriptId);
+      console.log(`\n--- [FETCH TRIGGERED] ---`);
+      console.log(`[FETCH] Attempting to reach: https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
 
       try {
-        // Fetch from the Next.js API endpoint you built earlier
         const response = await fetch(`https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
+        console.log(`[FETCH] HTTP Status: ${response.status}`);
         
         if (!response.ok) {
-           const errorData = await response.json();
-           throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+           const errorText = await response.text();
+           console.error(`[FETCH] Failed Payload:`, errorText);
+           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
+        console.log(`[FETCH] Success! Payload length: ${JSON.stringify(data).length} bytes`);
 
         return {
           content: [{
             type: "text",
-            text: `SOVEREIGN DATA RETRIEVED:\n\n${data.data}` // The raw markdown payload
+            text: `SOVEREIGN DATA RETRIEVED:\n\n${data.data}` 
           }],
           isError: false
         };
       } catch (error) {
-        return {
-          content: [{ type: "text", text: `Error fetching data: ${(error as Error).message}` }],
-          isError: true
-        };
+        console.error("[FETCH] Hard Crash:", error);
+        // Force the hard throw so Claude registers the failure properly
+        throw new Error(`Error fetching sovereign data: ${(error as Error).message}`);
       }
     }
 
     if (request.params.name === "publish-synthetic_market_audit") {
       const bookProposal = String(request.params.arguments?.bookProposal);
+      console.log(`\n--- [AUDIT TRIGGERED] ---`);
+      console.log(`[GEMINI KEY CHECK] Present: ${!!process.env.GEMINI_API_KEY}`);
+      console.log(`[GEMINI KEY CHECK] Length: ${process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0}`);
 
       try {
-        // Using your existing guardianModel (Gemini) to perform the audit
         const prompt = `You are a strict, highly analytical publishing acquisitions editor and cognitive scientist. 
         Audit the following Book Proposal against your own internal training data regarding current market trends, philosophical frameworks, and societal discourse.
         
@@ -1024,7 +1029,10 @@ function createMahaServer() {
         
         Return ONLY a raw JSON object: {"auditReport": "Your full 3-paragraph analysis here."}`;
 
+        console.log(`[AUDIT] Firing prompt to Agentic Core...`);
         const result = await guardianModel.generateContent(prompt);
+        console.log(`[AUDIT] Generation complete. Parsing JSON...`);
+        
         const rawText = result.response.text();
         const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         const audit = JSON.parse(cleanJson);
@@ -1037,10 +1045,8 @@ function createMahaServer() {
           isError: false
         };
       } catch (error) {
-        return {
-          content: [{ type: "text", text: `Error generating audit: ${(error as Error).message}` }],
-          isError: true
-        };
+        console.error("[AUDIT] Hard Crash:", error);
+        throw new Error(`Error generating synthetic audit: ${(error as Error).message}`);
       }
     }
     throw new Error("Tool not found");
