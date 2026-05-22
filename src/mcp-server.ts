@@ -1082,8 +1082,16 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
     const sessionId = Math.random().toString(36).substring(2, 15);
     const server = createMahaServer();
     
+    // Extract the token from the initial connection
+    const token = req.query.token as string;
+    
+    // Attach the token to the POST URL so Claude remembers to use it
+    const messageUrl = token 
+        ? `/mcp/messages?sessionId=${sessionId}&token=${token}` 
+        : `/mcp/messages?sessionId=${sessionId}`;
+    
     // Instruct the client to send POST messages to this specific session's URL
-    const transport = new SSEServerTransport(`/mcp/messages?sessionId=${sessionId}`, res);
+    const transport = new SSEServerTransport(messageUrl, res);
     
     activeTransports.set(sessionId, transport);
     await server.connect(transport);
