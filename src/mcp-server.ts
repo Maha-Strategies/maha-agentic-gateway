@@ -375,17 +375,24 @@ app.get([
 const AUTHORIZED_TOKEN = process.env.MAHA_AGENT_TOKEN;
 
 const verifyAgentToken = (req: Request, res: Response, next: NextFunction): void => {
-    const authHeader = req.headers.authorization;
+    // 1. Check for token in the URL query string FIRST (For Claude Web)
+    let token = req.query.token as string;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // 2. Fallback to Bearer Header (For Claude Desktop / Custom GPTs)
+    if (!token) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        }
+    }
+
+    if (!token) {
         res.status(401).json({ 
             error: 'Unauthorized', 
-            message: 'Maha OS requires a valid Bearer token for access.' 
+            message: 'Maha OS requires a valid token for access.' 
         });
         return;
     }
-
-    const token = authHeader.split(' ')[1];
 
     if (token !== AUTHORIZED_TOKEN) {
         res.status(403).json({ 
