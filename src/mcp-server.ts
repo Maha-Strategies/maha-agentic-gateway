@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import WebSocket from 'ws';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import express, { Request, Response, NextFunction } from "express";
+import express from "express";
+import type { Request, Response, NextFunction } from "express";
 import path from 'path';
 import cors from "cors";
 import { createServer } from "http";
@@ -990,7 +991,11 @@ function createMahaServer() {
       console.log(`[FETCH] Attempting to reach: https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
 
       try {
-        const response = await fetch(`https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
+        const response = await fetch(`https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`, {
+          headers: {
+            "Authorization": `Bearer ${process.env.MAHA_AGENT_TOKEN}`
+          }
+        });
         console.log(`[FETCH] HTTP Status: ${response.status}`);
         
         if (!response.ok) {
