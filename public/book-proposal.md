@@ -2,7 +2,7 @@
 
 **Title:** The Maha Principle: A Blueprint for Biological Sovereignty, Mental Focus, and National Renewal
 **Author:** Mayone Maha Rajan
-**Word Count:** 99,000 words
+**Word Count:** 75,000 words
 **Genre:** Prescriptive Non-Fiction / Big Idea / Political Philosophy
 
 ## 1. The Overview

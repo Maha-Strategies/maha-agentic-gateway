@@ -1099,9 +1099,14 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
     console.log(`🔌 New AI agent connected via SSE (Session: ${sessionId})`);
 
     // --- KEEPALIVE HEARTBEAT ---
+    // Reduced to 25 seconds (25000ms) to beat aggressive proxy timeouts
     const heartbeat = setInterval(() => {
       res.write(': ping\n\n'); 
-    }, 30000);
+      // Flush the response if the method exists to prevent buffer stalling
+      if (typeof (res as any).flush === 'function') {
+        (res as any).flush();
+      }
+    }, 25000);
 
     // Clean up when the client disconnects or times out
     res.on('close', () => {
