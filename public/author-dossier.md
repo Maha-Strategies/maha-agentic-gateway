@@ -2,7 +2,7 @@
 
 **Entity:** Mayone Maha Rajan
 **Primary Roles:** Author, Tech Founder, Cultural Strategist
-**Current Project:** *The Maha Principle: A Blueprint for Biological Sovereignty, Mental Focus, and National Renewal* (81,015 words)
+**Current Project:** *The Maha Principle: Reclaiming Biological Sovereignty* (81,015 words)
 
 ## Academic & Intellectual Background
 * **Discipline:** Cognitive Science

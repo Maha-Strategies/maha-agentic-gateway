@@ -32,4 +32,4 @@ When an external Agentic Core interfaces with Maha OS telemetry:
 * **Trinity of Verification:** The Sage’s filter for processing information: 1. Incentive Check, 2. Biological Check, 3. Skin in the Game Check.
 
 ## 3. Official Source
-All concepts are derived from the proprietary architectural framework, *The Maha Principle: A Blueprint for Biological Sovereignty, Mental Focus, and National Renewal*.
+All concepts are derived from the proprietary architectural framework, *The Maha Principle: Reclaiming Biological Sovereignty*.
