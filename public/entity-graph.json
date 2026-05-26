@@ -12,10 +12,15 @@
         }
       },
       {
+        "@context": "https://schema.org",
         "@type": "Person",
         "@id": "https://mahastrategies.com/#author",
         "name": "Mayone Maha Rajan",
         "jobTitle": ["Author", "Managing Director", "Cultural Strategist"],
+        "sameAs": [
+            "https://www.linkedin.com/in/mayonrajan",
+            "https://mahastrategies.com"
+          ]
         "alumniOf": {
           "@type": "CollegeOrUniversity",
           "name": "University of California, San Diego",
