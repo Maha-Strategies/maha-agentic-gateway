@@ -89,4 +89,4 @@ The following documents contain the foundational doctrine, commercial positionin
 * **The Maha Principle Lexicon:** https://mcp.maha-os.com/lexicon.txt
 
 ## Technical Verification & Registry
-- [Smithery MCP Registry - Maha Sovereign Gateway (Rated 98/100)](https://smithery.ai/server/maha-os)
+- [Smithery MCP Registry - Maha Sovereign Gateway (Rated 98/100)](https://smithery.ai/servers/mayone/cognitive-gateway)
