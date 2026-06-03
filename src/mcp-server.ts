@@ -10,7 +10,6 @@ import { Server as SocketServer } from "socket.io";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   ListResourcesRequestSchema,
@@ -659,9 +658,9 @@ function createMahaServer() {
           properties: {
             success: { type: "boolean" },
             message: { type: "string" }
+          }
         }
-      }
-    },
+      },
     {
       name: "publish.analyze_mswl",
       description: "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
@@ -1078,55 +1077,9 @@ function createMahaServer() {
 // 3. TRANSPORT LAYER (SSE) - MULTI-SESSION
 // ==========================================
 // Map to hold active connections based on unique Session IDs
-const activeTransports = new Map<string, SSEServerTransport>();
 
 const activeSessions = new Map<string, string>(); // Keep your existing sessions map
 const nodeTelemetry = new Map<string, any>(); // Keep your existing telemetry map
-
-app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
-  try {
-    const sessionId = Math.random().toString(36).substring(2, 15);
-    const server = createMahaServer();
-    
-    // Extract the token from the initial connection
-    const token = req.query.token as string;
-    
-    // Attach the token to the POST URL so Claude remembers to use it
-    const messageUrl = token 
-        ? `/mcp/messages?sessionId=${sessionId}&token=${token}` 
-        : `/mcp/messages?sessionId=${sessionId}`;
-    
-    // Instruct the client to send POST messages to this specific session's URL
-    const transport = new SSEServerTransport(messageUrl, res);
-    
-    activeTransports.set(transport.sessionId, transport);
-    await server.connect(transport);
-    
-    console.log(`🔌 New AI agent connected via SSE (Session: ${transport.sessionId})`);
-
-    // --- KEEPALIVE HEARTBEAT ---
-    // Reduced to 25 seconds (25000ms) to beat aggressive proxy timeouts
-    const heartbeat = setInterval(() => {
-      res.write(': ping\n\n'); 
-      // Flush the response if the method exists to prevent buffer stalling
-      if (typeof (res as any).flush === 'function') {
-        (res as any).flush();
-      }
-    }, 25000);
-
-    // Clean up when the client disconnects or times out
-    res.on('close', () => {
-      clearInterval(heartbeat);
-      console.log(`🔌 SSE Connection closed (Session: ${transport.sessionId}). Cleaning up...`);
-      activeTransports.delete(transport.sessionId);
-      server.close().catch(console.error);
-    });
-
-  } catch (error) {
-    console.error("SSE Connection Error:", error);
-    res.status(500).send("Internal Server Error during SSE setup.");
-  }
-});
 
 // ============================================================================
 // STREAMABLE-HTTP ENDPOINT  (the fix for "Initialization failed with status 404")
@@ -1205,20 +1158,6 @@ const methodNotAllowed = (_req: Request, res: Response) => {
 };
 app.get("/mcp", methodNotAllowed);
 app.delete("/mcp", methodNotAllowed);
-
-app.post("/mcp/messages", verifyAgentToken, async (req: Request, res: Response) => {
-  // Route the incoming message to the correct transport instance
-  const sessionId = req.query.sessionId as string;
-  const transport = activeTransports.get(sessionId);
-
-  if (!transport) {
-      console.warn(`[ROUTER] Message received for dead session: ${sessionId}`);
-      res.status(404).send("Session not found or expired.");
-      return;
-  }
-
-  await transport.handlePostMessage(req, res);
-});
 
 // ==========================================
 // 5. REST API FOR CUSTOM GPT (OPENAI)
