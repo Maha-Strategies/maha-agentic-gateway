@@ -11,6 +11,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
@@ -1098,10 +1099,10 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
     // Instruct the client to send POST messages to this specific session's URL
     const transport = new SSEServerTransport(messageUrl, res);
     
-    activeTransports.set(sessionId, transport);
+    activeTransports.set(transport.sessionId, transport);
     await server.connect(transport);
     
-    console.log(`🔌 New AI agent connected via SSE (Session: ${sessionId})`);
+    console.log(`🔌 New AI agent connected via SSE (Session: ${transport.sessionId})`);
 
     // --- KEEPALIVE HEARTBEAT ---
     // Reduced to 25 seconds (25000ms) to beat aggressive proxy timeouts
@@ -1116,8 +1117,8 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
     // Clean up when the client disconnects or times out
     res.on('close', () => {
       clearInterval(heartbeat);
-      console.log(`🔌 SSE Connection closed (Session: ${sessionId}). Cleaning up...`);
-      activeTransports.delete(sessionId);
+      console.log(`🔌 SSE Connection closed (Session: ${transport.sessionId}). Cleaning up...`);
+      activeTransports.delete(transport.sessionId);
       server.close().catch(console.error);
     });
 
@@ -1126,6 +1127,84 @@ app.get("/mcp/sse", verifyAgentToken, async (req: Request, res: Response) => {
     res.status(500).send("Internal Server Error during SSE setup.");
   }
 });
+
+// ============================================================================
+// STREAMABLE-HTTP ENDPOINT  (the fix for "Initialization failed with status 404")
+// ============================================================================
+// WHY: Smithery / modern MCP clients initialize by POSTing JSON-RPC to /mcp over
+// the streamable-HTTP transport. The server currently only exposes SSE at
+// /mcp/sse, so initialize hits no handler -> 404. This adds /mcp.
+//
+// SCOPE OF THIS PATCH:
+//   - Stateless mode (sessionIdGenerator: undefined) — simplest, proxy-friendly.
+//   - NO auth guard yet (deliberate: get it connecting first, add token after).
+//   - Mounted ALONGSIDE existing /mcp/sse + /mcp/messages — nothing removed.
+//
+// ---------------------------------------------------------------------------
+// STEP A — add this import near the other SDK imports at the top of the file,
+// next to the existing SSEServerTransport import (line ~13):
+//
+//   import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+//
+// ---------------------------------------------------------------------------
+// STEP B — the conditional body-parser (lines ~112-120) currently only skips
+// express.json() for '/mcp/messages'. The streamable-HTTP transport on /mcp
+// needs the PARSED JSON body, so /mcp should go through express.json() (the
+// else branch). That already happens with your current code because only
+// '/mcp/messages' is special-cased — so DO NOT add '/mcp' to the skip list.
+// Leave the body-parser block as-is. (Noting it so you don't "helpfully" add
+// /mcp to the skip condition — that would break this.)
+//
+// ---------------------------------------------------------------------------
+// STEP C — add the route below. Put it NEAR your existing app.get("/mcp/sse")
+// and app.post("/mcp/messages") routes (around line ~1085), but BEFORE any
+// catch-all/static fallthrough. createMahaServer() is your existing factory.
+// ============================================================================
+
+// POST /mcp  — client-to-server (initialize + all subsequent JSON-RPC calls).
+// Stateless: a fresh server+transport per request, torn down on close.
+app.post("/mcp", async (req: Request, res: Response) => {
+  try {
+    const server = createMahaServer();
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // stateless mode
+    });
+
+    // Ensure cleanup when the request closes.
+    res.on("close", () => {
+      transport.close().catch(() => {});
+      server.close().catch(() => {});
+    });
+
+    await server.connect(transport);
+
+    // req.body is already parsed by your express.json() middleware (see STEP B).
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    console.error("[/mcp] streamable-http error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        error: { code: -32603, message: "Internal server error" },
+        id: null,
+      });
+    }
+  }
+});
+
+// GET /mcp and DELETE /mcp — in stateless mode there is no persistent session
+// to stream notifications to or to terminate, so these correctly return 405.
+// (Some clients probe them; returning a clean 405 is the spec-correct answer.)
+const methodNotAllowed = (_req: Request, res: Response) => {
+  res.status(405).json({
+    jsonrpc: "2.0",
+    error: { code: -32000, message: "Method not allowed in stateless mode." },
+    id: null,
+  });
+};
+app.get("/mcp", methodNotAllowed);
+app.delete("/mcp", methodNotAllowed);
 
 app.post("/mcp/messages", verifyAgentToken, async (req: Request, res: Response) => {
   // Route the incoming message to the correct transport instance
