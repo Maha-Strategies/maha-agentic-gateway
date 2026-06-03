@@ -27,7 +27,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ||'');
 // ==========================================
 const MAHA_TOOLS = [
   {
-    name: "get_baseline",
+    name: "defense.get_baseline",
     description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
     // Tells the AI this tool is perfectly safe to run and retry
     annotations: { "readOnlyHint": true, "idempotentHint": true },
@@ -50,7 +50,7 @@ const MAHA_TOOLS = [
     }
   },
   {
-    name: "trigger_circuit_breaker",
+    name: "defense.trigger_circuit_breaker",
     description: "Activates the cognitive defense protocol on the user's local device, forcing a biological reset.",
     // Tells the AI this tool modifies the environment and crosses a boundary
     annotations: { "destructiveHint": true, "openWorldHint": true },
@@ -127,7 +127,7 @@ app.get([
   res.json({
     "serverInfo": {
       "name": "@mayone/cognitive-gateway",
-      "version": "1.0.0"
+      "version": "1.0.2"
     },
     "configSchema": {
       "type": "object",
@@ -141,7 +141,7 @@ app.get([
     },
     "tools": [
       {
-        "name": "get_baseline",
+        "name": "defense.get_baseline",
         "description": "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
         // Tells the AI this tool is perfectly safe to run and retry
         "annotations": { "readOnlyHint": true, "idempotentHint": true },
@@ -161,7 +161,7 @@ app.get([
         }
       },
       {
-        "name": "trigger_circuit_breaker",
+        "name": "defense.trigger_circuit_breaker",
         "description": "Activates the cognitive defense protocol on the user's local device.",
         // Tells the AI this tool modifies the environment and crosses a boundary
         "annotations": { "destructiveHint": true, "openWorldHint": true },
@@ -185,7 +185,7 @@ app.get([
         }
       },
       {
-        "name": "analyze_mswl",
+        "name": "publish.analyze_mswl",
         "description": "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
         "annotations": {
           "readOnlyHint": true,
@@ -230,7 +230,7 @@ app.get([
         }
       },
       {
-        "name": "generate_query",
+        "name": "publish.generate_query",
         "description": "Drafts a complete, professional query letter tailored to a specific literary agent using The Maha Principle ecosystem documents.",
         "annotations": {
           "readOnlyHint": true,
@@ -264,7 +264,7 @@ app.get([
         }
       },
       {
-        "name": "log_query",
+        "name": "publish.log_query",
         "description": "Automatically logs a completed query submission into the local CRM tracking file.",
         "annotations": {
           "readOnlyHint": false,
@@ -303,7 +303,7 @@ app.get([
         }
       },
       {
-        "name": "export_shunn",
+        "name": "publish.export_shunn",
         "description": "Formats a manuscript chapter into the strict Shunn Standard required by literary agents.",
         "annotations": {
           "readOnlyHint": true,
@@ -330,7 +330,7 @@ app.get([
         }
       },
       {
-        "name": "fetch_sovereign_data",
+        "name": "publish.fetch_sovereign_data",
         "description": "Retrieves the immutable Author Dossier and Book Proposal from the secure Maha Strategies database using a manuscript ID.",
         "annotations": { "readOnlyHint": true, "idempotentHint": true },
         "inputSchema": {
@@ -350,7 +350,7 @@ app.get([
         }
       },
       {
-        "name": "synthetic_market_audit",
+        "name": "publish.synthetic_market_audit",
         "description": "Audits a manuscript's core frameworks against the LLM's own internal training data to identify ideological gaps, competing frameworks, and semantic viability.",
         "annotations": { "readOnlyHint": true, "idempotentHint": false },
         "inputSchema": {
@@ -529,7 +529,7 @@ io.on("connection", (socket) => {
 // ==========================================
 function createMahaServer() {
   const server = new Server(
-    { name: "Maha-OS-Agentic-Gateway", version: "1.0.0" },
+    { name: "Maha-OS-Agentic-Gateway", version: "1.0.2" },
     { capabilities: { resources: {}, tools: {} } }
   );
 
@@ -623,7 +623,7 @@ function createMahaServer() {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
       {
-        name: "get_baseline",
+        name: "defense.get_baseline",
         description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
         // Tells the AI this tool is perfectly safe to run and retry
         annotations: { "readOnlyHint": true, "idempotentHint": true },
@@ -643,7 +643,7 @@ function createMahaServer() {
         }
       }, 
       {
-        name: "trigger_circuit_breaker",
+        name: "defense.trigger_circuit_breaker",
         description: "Executes an absolute z-[9999] OS-level preemption overlay.",
         // Tells the AI this tool modifies the environment and crosses a boundary
         annotations: { "destructiveHint": true, "openWorldHint": true },
@@ -663,7 +663,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "analyze_mswl",
+      name: "publish.analyze_mswl",
       description: "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
       annotations: { "readOnlyHint": true, "idempotentHint": true },
       inputSchema: {
@@ -676,7 +676,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "generate_query",
+      name: "publish.generate_query",
       description: "Drafts a complete, professional query letter tailored to a specific literary agent using The Maha Principle ecosystem documents.",
       annotations: { "readOnlyHint": true, "idempotentHint": true },
       inputSchema: {
@@ -689,7 +689,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "log_query",
+      name: "publish.log_query",
       description: "Automatically logs a completed query submission into the local CRM tracking file.",
       annotations: { readOnlyHint: false, idempotentHint: false },
       inputSchema: {
@@ -703,7 +703,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "export_shunn",
+      name: "publish.export_shunn",
       description: "Formats a manuscript chapter into the strict Shunn Standard required by literary agents.",
       annotations: { "readOnlyHint": true, "idempotentHint": true },
       inputSchema: {
@@ -715,7 +715,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "fetch_sovereign_data",
+      name: "publish.fetch_sovereign_data",
       description: "Retrieves the immutable Author Dossier and Book Proposal from the secure Maha Strategies database using a manuscript ID.",
       annotations: { "readOnlyHint": true, "idempotentHint": true },
       inputSchema: {
@@ -735,7 +735,7 @@ function createMahaServer() {
       }
     },
     {
-      name: "synthetic_market_audit",
+      name: "publish.synthetic_market_audit",
       description: "Audits a manuscript's core frameworks against the LLM's own internal training data to identify ideological gaps, competing frameworks, and semantic viability.",
       annotations: { "readOnlyHint": true, "idempotentHint": false },
       inputSchema: {
@@ -757,7 +757,7 @@ function createMahaServer() {
 
   // FIXED: Wrapped the logic back into the setRequestHandler
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    if (request.params.name === "get_baseline") {
+    if (request.params.name === "defense.get_baseline") {
       const activeNode = Array.from(nodeTelemetry.keys())[0];
       
       if (activeNode && nodeTelemetry.has(activeNode)) {
@@ -796,7 +796,7 @@ function createMahaServer() {
       };
     } 
     
-    if (request.params.name === "trigger_circuit_breaker") {
+    if (request.params.name === "defense.trigger_circuit_breaker") {
       const severity = request.params.arguments?.severity as string;
       const activeNode = Array.from(nodeTelemetry.keys())[0];
       
@@ -815,7 +815,7 @@ function createMahaServer() {
       };
     }
 
-    if (request.params.name === "analyze_mswl") {
+    if (request.params.name === "publish.analyze_mswl") {
       const agentName = String(request.params.arguments?.agentName);
       const mswlText = String(request.params.arguments?.mswlText);
 
@@ -861,7 +861,7 @@ function createMahaServer() {
       }
     }
 
-    if (request.params.name === "generate_query") {
+    if (request.params.name === "publish.generate_query") {
       const agentName = String(request.params.arguments?.agentName);
       const suggestedHook = String(request.params.arguments?.suggestedHook);
 
@@ -911,7 +911,7 @@ function createMahaServer() {
        }
     }
 
-    if (request.params.name === "log_query") {
+    if (request.params.name === "publish.log_query") {
       const agentName = String(request.params.arguments?.agentName);
       const agency = String(request.params.arguments?.agency);
       const hookUsed = String(request.params.arguments?.hookUsed);
@@ -947,7 +947,7 @@ function createMahaServer() {
       }
     }
 
-    if (request.params.name === "export_shunn") {
+    if (request.params.name === "publish.export_shunn") {
       const chapterNum = Number(request.params.arguments?.chapterNumber);
 
       try {
@@ -986,7 +986,7 @@ function createMahaServer() {
     // ==========================================
     // NEW AIO TOOLS (WITH DIAGNOSTICS)
     // ==========================================
-    if (request.params.name === "fetch_sovereign_data") {
+    if (request.params.name === "publish.fetch_sovereign_data") {
       const manuscriptId = String(request.params.arguments?.manuscriptId);
       console.log(`\n--- [FETCH TRIGGERED] ---`);
       console.log(`[FETCH] Attempting to reach: https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
@@ -1024,7 +1024,7 @@ function createMahaServer() {
         };
       }
     }
-    if (request.params.name === "synthetic_market_audit") {
+    if (request.params.name === "publish.synthetic_market_audit") {
       const bookProposal = String(request.params.arguments?.bookProposal);
       console.log(`\n--- [AUDIT TRIGGERED] ---`);
       console.log(`[GEMINI KEY CHECK] Present: ${!!process.env.GEMINI_API_KEY}`);
