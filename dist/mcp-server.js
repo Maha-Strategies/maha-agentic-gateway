@@ -10,6 +10,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { ListResourcesRequestSchema, ReadResourceRequestSchema, ListToolsRequestSchema, CallToolRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
 // Initialize Gemini with your API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -18,7 +19,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // ==========================================
 const MAHA_TOOLS = [
     {
-        name: "defense.get_baseline",
+        name: "defense_get_baseline",
         description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
         // Tells the AI this tool is perfectly safe to run and retry
         annotations: { "readOnlyHint": true, "idempotentHint": true },
@@ -41,7 +42,7 @@ const MAHA_TOOLS = [
         }
     },
     {
-        name: "defense.trigger_circuit_breaker",
+        name: "defense_trigger_circuit_breaker",
         description: "Activates the cognitive defense protocol on the user's local device, forcing a biological reset.",
         // Tells the AI this tool modifies the environment and crosses a boundary
         annotations: { "destructiveHint": true, "openWorldHint": true },
@@ -127,7 +128,7 @@ app.get([
         },
         "tools": [
             {
-                "name": "defense-get_baseline",
+                "name": "defense_get_baseline",
                 "description": "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
                 // Tells the AI this tool is perfectly safe to run and retry
                 "annotations": { "readOnlyHint": true, "idempotentHint": true },
@@ -147,7 +148,7 @@ app.get([
                 }
             },
             {
-                "name": "defense-trigger_circuit_breaker",
+                "name": "defense_trigger_circuit_breaker",
                 "description": "Activates the cognitive defense protocol on the user's local device.",
                 // Tells the AI this tool modifies the environment and crosses a boundary
                 "annotations": { "destructiveHint": true, "openWorldHint": true },
@@ -171,7 +172,7 @@ app.get([
                 }
             },
             {
-                "name": "publish-analyze_mswl",
+                "name": "publish_analyze_mswl",
                 "description": "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
                 "annotations": {
                     "readOnlyHint": true,
@@ -216,7 +217,7 @@ app.get([
                 }
             },
             {
-                "name": "publish-generate_query",
+                "name": "publish_generate_query",
                 "description": "Drafts a complete, professional query letter tailored to a specific literary agent using The Maha Principle ecosystem documents.",
                 "annotations": {
                     "readOnlyHint": true,
@@ -250,7 +251,7 @@ app.get([
                 }
             },
             {
-                "name": "publish-log_query",
+                "name": "publish_log_query",
                 "description": "Automatically logs a completed query submission into the local CRM tracking file.",
                 "annotations": {
                     "readOnlyHint": false,
@@ -289,7 +290,7 @@ app.get([
                 }
             },
             {
-                "name": "publish-export_shunn",
+                "name": "publish_export_shunn",
                 "description": "Formats a manuscript chapter into the strict Shunn Standard required by literary agents.",
                 "annotations": {
                     "readOnlyHint": true,
@@ -316,7 +317,7 @@ app.get([
                 }
             },
             {
-                "name": "publish-fetch_sovereign_data",
+                "name": "publish_fetch_sovereign_data",
                 "description": "Retrieves the immutable Author Dossier and Book Proposal from the secure Maha Strategies database using a manuscript ID.",
                 "annotations": { "readOnlyHint": true, "idempotentHint": true },
                 "inputSchema": {
@@ -336,7 +337,7 @@ app.get([
                 }
             },
             {
-                "name": "publish-synthetic_market_audit",
+                "name": "publish_synthetic_market_audit",
                 "description": "Audits a manuscript's core frameworks against the LLM's own internal training data to identify ideological gaps, competing frameworks, and semantic viability.",
                 "annotations": { "readOnlyHint": true, "idempotentHint": false },
                 "inputSchema": {
@@ -575,7 +576,7 @@ function createMahaServer() {
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
         tools: [
             {
-                name: "defense-get_baseline",
+                name: "defense_get_baseline",
                 description: "Analyzes real-time physiological data to recommend highly personalized metabolic and circadian protocols.",
                 // Tells the AI this tool is perfectly safe to run and retry
                 annotations: { "readOnlyHint": true, "idempotentHint": true },
@@ -595,7 +596,7 @@ function createMahaServer() {
                 }
             },
             {
-                name: "defense-trigger_circuit_breaker",
+                name: "defense_trigger_circuit_breaker",
                 description: "Executes an absolute z-[9999] OS-level preemption overlay.",
                 // Tells the AI this tool modifies the environment and crosses a boundary
                 annotations: { "destructiveHint": true, "openWorldHint": true },
@@ -615,7 +616,7 @@ function createMahaServer() {
                 }
             },
             {
-                name: "publish-analyze_mswl",
+                name: "publish_analyze_mswl",
                 description: "Analyzes a literary agent's Manuscript Wish List (MSWL) against The Maha Principle's core architecture to determine fit and generate a targeted query hook.",
                 annotations: { "readOnlyHint": true, "idempotentHint": true },
                 inputSchema: {
@@ -628,7 +629,7 @@ function createMahaServer() {
                 }
             },
             {
-                name: "publish-generate_query",
+                name: "publish_generate_query",
                 description: "Drafts a complete, professional query letter tailored to a specific literary agent using The Maha Principle ecosystem documents.",
                 annotations: { "readOnlyHint": true, "idempotentHint": true },
                 inputSchema: {
@@ -641,7 +642,7 @@ function createMahaServer() {
                 }
             },
             {
-                name: "publish-log_query",
+                name: "publish_log_query",
                 description: "Automatically logs a completed query submission into the local CRM tracking file.",
                 annotations: { readOnlyHint: false, idempotentHint: false },
                 inputSchema: {
@@ -655,7 +656,7 @@ function createMahaServer() {
                 }
             },
             {
-                name: "publish-export_shunn",
+                name: "publish_export_shunn",
                 description: "Formats a manuscript chapter into the strict Shunn Standard required by literary agents.",
                 annotations: { "readOnlyHint": true, "idempotentHint": true },
                 inputSchema: {
@@ -667,7 +668,7 @@ function createMahaServer() {
                 }
             },
             {
-                name: "publish-fetch_sovereign_data",
+                name: "publish_fetch_sovereign_data",
                 description: "Retrieves the immutable Author Dossier and Book Proposal from the secure Maha Strategies database using a manuscript ID.",
                 annotations: { "readOnlyHint": true, "idempotentHint": true },
                 inputSchema: {
@@ -687,7 +688,7 @@ function createMahaServer() {
                 }
             },
             {
-                name: "publish-synthetic_market_audit",
+                name: "publish_synthetic_market_audit",
                 description: "Audits a manuscript's core frameworks against the LLM's own internal training data to identify ideological gaps, competing frameworks, and semantic viability.",
                 annotations: { "readOnlyHint": true, "idempotentHint": false },
                 inputSchema: {
@@ -708,7 +709,7 @@ function createMahaServer() {
     }));
     // FIXED: Wrapped the logic back into the setRequestHandler
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
-        if (request.params.name === "defense-get_baseline") {
+        if (request.params.name === "defense_get_baseline") {
             const activeNode = Array.from(nodeTelemetry.keys())[0];
             if (activeNode && nodeTelemetry.has(activeNode)) {
                 const liveData = nodeTelemetry.get(activeNode);
@@ -742,7 +743,7 @@ function createMahaServer() {
                 isError: false
             };
         }
-        if (request.params.name === "defense-trigger_circuit_breaker") {
+        if (request.params.name === "defense_trigger_circuit_breaker") {
             const severity = request.params.arguments?.severity;
             const activeNode = Array.from(nodeTelemetry.keys())[0];
             if (activeNode) {
@@ -758,7 +759,7 @@ function createMahaServer() {
                     }]
             };
         }
-        if (request.params.name === "publish-analyze_mswl") {
+        if (request.params.name === "publish_analyze_mswl") {
             const agentName = String(request.params.arguments?.agentName);
             const mswlText = String(request.params.arguments?.mswlText);
             try {
@@ -799,7 +800,7 @@ function createMahaServer() {
                 };
             }
         }
-        if (request.params.name === "publish-generate_query") {
+        if (request.params.name === "publish_generate_query") {
             const agentName = String(request.params.arguments?.agentName);
             const suggestedHook = String(request.params.arguments?.suggestedHook);
             try {
@@ -842,7 +843,7 @@ function createMahaServer() {
                 };
             }
         }
-        if (request.params.name === "publish-log_query") {
+        if (request.params.name === "publish_log_query") {
             const agentName = String(request.params.arguments?.agentName);
             const agency = String(request.params.arguments?.agency);
             const hookUsed = String(request.params.arguments?.hookUsed);
@@ -873,7 +874,7 @@ function createMahaServer() {
                 };
             }
         }
-        if (request.params.name === "publish-export_shunn") {
+        if (request.params.name === "publish_export_shunn") {
             const chapterNum = Number(request.params.arguments?.chapterNumber);
             try {
                 const frameworkPath = path.join(__dirname, '../public/maha-framework.md');
@@ -908,7 +909,7 @@ function createMahaServer() {
         // ==========================================
         // NEW AIO TOOLS (WITH DIAGNOSTICS)
         // ==========================================
-        if (request.params.name === "publish-fetch_sovereign_data") {
+        if (request.params.name === "publish_fetch_sovereign_data") {
             const manuscriptId = String(request.params.arguments?.manuscriptId);
             console.log(`\n--- [FETCH TRIGGERED] ---`);
             console.log(`[FETCH] Attempting to reach: https://publish.mahastrategies.com/api/synthetic/${manuscriptId}`);
@@ -943,7 +944,7 @@ function createMahaServer() {
                 };
             }
         }
-        if (request.params.name === "publish-synthetic_market_audit") {
+        if (request.params.name === "publish_synthetic_market_audit") {
             const bookProposal = String(request.params.arguments?.bookProposal);
             console.log(`\n--- [AUDIT TRIGGERED] ---`);
             console.log(`[GEMINI KEY CHECK] Present: ${!!process.env.GEMINI_API_KEY}`);
@@ -1007,9 +1008,9 @@ app.get("/mcp/sse", verifyAgentToken, async (req, res) => {
             : `/mcp/messages?sessionId=${sessionId}`;
         // Instruct the client to send POST messages to this specific session's URL
         const transport = new SSEServerTransport(messageUrl, res);
-        activeTransports.set(sessionId, transport);
+        activeTransports.set(transport.sessionId, transport);
         await server.connect(transport);
-        console.log(`🔌 New AI agent connected via SSE (Session: ${sessionId})`);
+        console.log(`🔌 New AI agent connected via SSE (Session: ${transport.sessionId})`);
         // --- KEEPALIVE HEARTBEAT ---
         // Reduced to 25 seconds (25000ms) to beat aggressive proxy timeouts
         const heartbeat = setInterval(() => {
@@ -1022,8 +1023,8 @@ app.get("/mcp/sse", verifyAgentToken, async (req, res) => {
         // Clean up when the client disconnects or times out
         res.on('close', () => {
             clearInterval(heartbeat);
-            console.log(`🔌 SSE Connection closed (Session: ${sessionId}). Cleaning up...`);
-            activeTransports.delete(sessionId);
+            console.log(`🔌 SSE Connection closed (Session: ${transport.sessionId}). Cleaning up...`);
+            activeTransports.delete(transport.sessionId);
             server.close().catch(console.error);
         });
     }
@@ -1032,6 +1033,78 @@ app.get("/mcp/sse", verifyAgentToken, async (req, res) => {
         res.status(500).send("Internal Server Error during SSE setup.");
     }
 });
+// ============================================================================
+// STREAMABLE-HTTP ENDPOINT  (the fix for "Initialization failed with status 404")
+// ============================================================================
+// WHY: Smithery / modern MCP clients initialize by POSTing JSON-RPC to /mcp over
+// the streamable-HTTP transport. The server currently only exposes SSE at
+// /mcp/sse, so initialize hits no handler -> 404. This adds /mcp.
+//
+// SCOPE OF THIS PATCH:
+//   - Stateless mode (sessionIdGenerator: undefined) — simplest, proxy-friendly.
+//   - NO auth guard yet (deliberate: get it connecting first, add token after).
+//   - Mounted ALONGSIDE existing /mcp/sse + /mcp/messages — nothing removed.
+//
+// ---------------------------------------------------------------------------
+// STEP A — add this import near the other SDK imports at the top of the file,
+// next to the existing SSEServerTransport import (line ~13):
+//
+//   import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+//
+// ---------------------------------------------------------------------------
+// STEP B — the conditional body-parser (lines ~112-120) currently only skips
+// express.json() for '/mcp/messages'. The streamable-HTTP transport on /mcp
+// needs the PARSED JSON body, so /mcp should go through express.json() (the
+// else branch). That already happens with your current code because only
+// '/mcp/messages' is special-cased — so DO NOT add '/mcp' to the skip list.
+// Leave the body-parser block as-is. (Noting it so you don't "helpfully" add
+// /mcp to the skip condition — that would break this.)
+//
+// ---------------------------------------------------------------------------
+// STEP C — add the route below. Put it NEAR your existing app.get("/mcp/sse")
+// and app.post("/mcp/messages") routes (around line ~1085), but BEFORE any
+// catch-all/static fallthrough. createMahaServer() is your existing factory.
+// ============================================================================
+// POST /mcp  — client-to-server (initialize + all subsequent JSON-RPC calls).
+// Stateless: a fresh server+transport per request, torn down on close.
+app.post("/mcp", async (req, res) => {
+    try {
+        const server = createMahaServer();
+        const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined, // stateless mode
+        });
+        // Ensure cleanup when the request closes.
+        res.on("close", () => {
+            transport.close().catch(() => { });
+            server.close().catch(() => { });
+        });
+        await server.connect(transport);
+        // req.body is already parsed by your express.json() middleware (see STEP B).
+        await transport.handleRequest(req, res, req.body);
+    }
+    catch (err) {
+        console.error("[/mcp] streamable-http error:", err);
+        if (!res.headersSent) {
+            res.status(500).json({
+                jsonrpc: "2.0",
+                error: { code: -32603, message: "Internal server error" },
+                id: null,
+            });
+        }
+    }
+});
+// GET /mcp and DELETE /mcp — in stateless mode there is no persistent session
+// to stream notifications to or to terminate, so these correctly return 405.
+// (Some clients probe them; returning a clean 405 is the spec-correct answer.)
+const methodNotAllowed = (_req, res) => {
+    res.status(405).json({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Method not allowed in stateless mode." },
+        id: null,
+    });
+};
+app.get("/mcp", methodNotAllowed);
+app.delete("/mcp", methodNotAllowed);
 app.post("/mcp/messages", verifyAgentToken, async (req, res) => {
     // Route the incoming message to the correct transport instance
     const sessionId = req.query.sessionId;
