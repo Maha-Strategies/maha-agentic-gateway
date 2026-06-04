@@ -82,6 +82,14 @@ const guardianModel = genAI.getGenerativeModel({
     "kineticProtocol": "A short, 1-sentence physical protocol like 'Execute 60 seconds of box breathing.' (Leave blank if interventionRequired is false)"
   }`,
 });
+// Clean model for the publishing tools — NO telemetry system instruction, so it
+// follows each tool's own prompt instead of the intervention schema.
+const publishModel = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+        responseMimeType: "application/json",
+    },
+});
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const httpServer = createServer(app);
@@ -773,7 +781,7 @@ function createMahaServer() {
            "matchingThemes": ["List of 2-3 overlapping themes"],
            "suggestedHook": "A powerful 2-sentence opening hook for the query letter that directly ties the agent's specific MSWL requests to the book's themes."
          }`;
-                const result = await guardianModel.generateContent(prompt);
+                const result = await publishModel.generateContent(prompt);
                 const rawText = result.response.text();
                 console.log("[MSWL] Raw Gemini output:", rawText);
                 const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -822,7 +830,7 @@ function createMahaServer() {
          Author Dossier: ${dossier}
 
          IMPORTANT: Return ONLY a raw JSON object with this key: {"queryLetter": "full text"}`;
-                const result = await guardianModel.generateContent(prompt);
+                const result = await publishModel.generateContent(prompt);
                 const rawText = result.response.text();
                 console.log("[QUERY] Raw Gemini output:", rawText);
                 // Safety: Strip markdown code blocks if the LLM includes them
@@ -899,10 +907,20 @@ function createMahaServer() {
         {
           "formattedText": "The fully formatted Shunn-compliant chapter header and first page."
         }`;
-                const result = await guardianModel.generateContent(prompt);
-                const formatted = JSON.parse(result.response.text());
+                const result = await publishModel.generateContent(prompt);
+                const rawText = result.response.text();
+                console.log("[SHUNN] Raw Gemini output:", rawText);
+                const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                let formattedText;
+                try {
+                    const formatted = JSON.parse(cleanJson);
+                    formattedText = formatted.formattedText || formatted.text || cleanJson;
+                }
+                catch {
+                    formattedText = cleanJson;
+                }
                 return {
-                    content: [{ type: "text", text: formatted.formattedText }],
+                    content: [{ type: "text", text: formattedText }],
                     isError: false
                 };
             }
@@ -969,8 +987,8 @@ function createMahaServer() {
         3. AIO Optimization: What specific keywords or concepts should the author lean into so that AI models naturally cite this work when users ask about cognitive defense?
         
         Return ONLY a raw JSON object: {"auditReport": "Your full 3-paragraph analysis here."}`;
-                console.log(`[AUDIT] Firing prompt to Agentic Core...`);
-                const result = await guardianModel.generateContent(prompt);
+                console.log(`[AUDIT] Firing prompt to publishing model...`);
+                const result = await publishModel.generateContent(prompt);
                 console.log(`[AUDIT] Generation complete. Parsing JSON...`);
                 const rawText = result.response.text();
                 console.log("[AUDIT] Raw Gemini output:", rawText);

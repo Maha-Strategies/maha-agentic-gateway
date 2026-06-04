@@ -92,6 +92,15 @@ const guardianModel = genAI.getGenerativeModel({
   }`,
 });
 
+// Clean model for the publishing tools — NO telemetry system instruction, so it
+// follows each tool's own prompt instead of the intervention schema.
+const publishModel = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash",
+  generationConfig: {
+    responseMimeType: "application/json",
+  },
+});
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
@@ -834,7 +843,7 @@ function createMahaServer() {
            "suggestedHook": "A powerful 2-sentence opening hook for the query letter that directly ties the agent's specific MSWL requests to the book's themes."
          }`;
 
-         const result = await guardianModel.generateContent(prompt);
+         const result = await publishModel.generateContent(prompt);
          const rawText = result.response.text();
          console.log("[MSWL] Raw Gemini output:", rawText);
          const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -889,7 +898,7 @@ function createMahaServer() {
 
          IMPORTANT: Return ONLY a raw JSON object with this key: {"queryLetter": "full text"}`;
 
-         const result = await guardianModel.generateContent(prompt);
+         const result = await publishModel.generateContent(prompt);
          const rawText = result.response.text();
          console.log("[QUERY] Raw Gemini output:", rawText);
 
@@ -976,11 +985,21 @@ function createMahaServer() {
           "formattedText": "The fully formatted Shunn-compliant chapter header and first page."
         }`;
 
-        const result = await guardianModel.generateContent(prompt);
-        const formatted = JSON.parse(result.response.text());
+        const result = await publishModel.generateContent(prompt);
+        const rawText = result.response.text();
+        console.log("[SHUNN] Raw Gemini output:", rawText);
+        const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        let formattedText;
+        try {
+          const formatted = JSON.parse(cleanJson);
+          formattedText = formatted.formattedText || formatted.text || cleanJson;
+        } catch {
+          formattedText = cleanJson;
+        }
 
         return {
-          content: [{ type: "text", text: formatted.formattedText }],
+          content: [{ type: "text", text: formattedText }],
           isError: false
         };
       } catch (error) {
@@ -1052,8 +1071,8 @@ function createMahaServer() {
         
         Return ONLY a raw JSON object: {"auditReport": "Your full 3-paragraph analysis here."}`;
 
-        console.log(`[AUDIT] Firing prompt to Agentic Core...`);
-        const result = await guardianModel.generateContent(prompt);
+        console.log(`[AUDIT] Firing prompt to publishing model...`);
+        const result = await publishModel.generateContent(prompt);
         console.log(`[AUDIT] Generation complete. Parsing JSON...`);
         
         const rawText = result.response.text();
