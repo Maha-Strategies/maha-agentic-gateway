@@ -774,7 +774,16 @@ function createMahaServer() {
            "suggestedHook": "A powerful 2-sentence opening hook for the query letter that directly ties the agent's specific MSWL requests to the book's themes."
          }`;
                 const result = await guardianModel.generateContent(prompt);
-                const analysis = JSON.parse(result.response.text());
+                const rawText = result.response.text();
+                console.log("[MSWL] Raw Gemini output:", rawText);
+                const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                let analysis;
+                try {
+                    analysis = JSON.parse(cleanJson);
+                }
+                catch {
+                    analysis = { raw: cleanJson };
+                }
                 return {
                     content: [{
                             type: "text",
@@ -815,13 +824,21 @@ function createMahaServer() {
          IMPORTANT: Return ONLY a raw JSON object with this key: {"queryLetter": "full text"}`;
                 const result = await guardianModel.generateContent(prompt);
                 const rawText = result.response.text();
+                console.log("[QUERY] Raw Gemini output:", rawText);
                 // Safety: Strip markdown code blocks if the LLM includes them
                 const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-                const draft = JSON.parse(cleanJson);
+                let letter;
+                try {
+                    const draft = JSON.parse(cleanJson);
+                    letter = draft.queryLetter || draft.letter || JSON.stringify(draft);
+                }
+                catch {
+                    letter = cleanJson;
+                }
                 return {
                     content: [{
                             type: "text",
-                            text: `### TARGETED QUERY FOR ${agentName.toUpperCase()}\n\n${draft.queryLetter}`
+                            text: `### TARGETED QUERY FOR ${agentName.toUpperCase()}\n\n${letter}`
                         }],
                     isError: false
                 };
@@ -956,12 +973,21 @@ function createMahaServer() {
                 const result = await guardianModel.generateContent(prompt);
                 console.log(`[AUDIT] Generation complete. Parsing JSON...`);
                 const rawText = result.response.text();
+                console.log("[AUDIT] Raw Gemini output:", rawText);
                 const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-                const audit = JSON.parse(cleanJson);
+                let report;
+                try {
+                    const audit = JSON.parse(cleanJson);
+                    report = audit.auditReport || audit.report || audit.analysis || JSON.stringify(audit);
+                }
+                catch {
+                    // Gemini didn't return valid JSON — use the raw text rather than crashing.
+                    report = cleanJson;
+                }
                 return {
                     content: [{
                             type: "text",
-                            text: `### SYNTHETIC MARKET AUDIT\n\n${audit.auditReport}`
+                            text: `### SYNTHETIC MARKET AUDIT\n\n${report}`
                         }],
                     isError: false
                 };
