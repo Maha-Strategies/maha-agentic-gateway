@@ -10,6 +10,7 @@ import { Server as SocketServer } from "socket.io";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { buildChatHandler } from './routes/maha_chat_route.js';
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   ListResourcesRequestSchema,
@@ -1284,6 +1285,12 @@ app.post('/api/telemetry', verifyAgentToken, async (req, res) => {
 
   res.status(200).send({ status: 'Logged and Evaluated' });
 });
+
+// ==========================================
+// STEWARD AI CHAT ROUTE
+// ==========================================
+// We pass 'io' so the route can trigger lockdowns, and use your existing verifyAgentToken middleware
+app.post('/api/chat', verifyAgentToken, buildChatHandler(io));
 
 // ==========================================
 // SESSION LOCKING ENDPOINT
