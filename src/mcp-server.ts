@@ -650,7 +650,7 @@ function createMahaServer() {
         inputSchema: {
           type: "object",
           properties: {
-            severity: { type: "string", description: "Must be 'mild', 'moderate', or 'critical'." }
+            severity: { type: "string", enum: ["mild", "moderate", "critical"], description: "Must be 'mild', 'moderate', or 'critical'." }
           },
           required: ["severity"]
         },
@@ -800,7 +800,7 @@ function createMahaServer() {
       const severity = request.params.arguments?.severity as string;
       const activeNode = Array.from(nodeTelemetry.keys())[0];
       
-      if (activeNode) {
+      if (activeNode && canFireCircuitBreaker(activeNode)) {
         io.to(activeNode).emit("trigger_circuit_breaker", {
           severity: severity,
           protocol: `Agentic Core Override: ${severity.toUpperCase()} systemic lock initiated.`
@@ -1118,6 +1118,25 @@ function createMahaServer() {
 const activeSessions = new Map<string, string>(); // Keep your existing sessions map
 const nodeTelemetry = new Map<string, any>(); // Keep your existing telemetry map
 
+// ==========================================
+// CIRCUIT-BREAKER THROTTLE (defense in depth)
+// ==========================================
+// Minimum time between circuit-breaker dispatches to the SAME node. Prevents the
+// device lockout from being spammed from ANY path (MCP tool, REST, auto-telemetry).
+const CIRCUIT_BREAKER_COOLDOWN_MS = 60_000;
+const lastBreakerFiredAt = new Map<string, number>(); // nodeId -> epoch ms
+
+function canFireCircuitBreaker(nodeId: string): boolean {
+  const now = Date.now();
+  const last = lastBreakerFiredAt.get(nodeId) ?? 0;
+  if (now - last < CIRCUIT_BREAKER_COOLDOWN_MS) {
+    console.warn(`[THROTTLE] Circuit breaker for Node ${nodeId} suppressed (cooldown).`);
+    return false;
+  }
+  lastBreakerFiredAt.set(nodeId, now);
+  return true;
+}
+
 // ============================================================================
 // STREAMABLE-HTTP ENDPOINT  (the fix for "Initialization failed with status 404")
 // ============================================================================
@@ -1153,7 +1172,7 @@ const nodeTelemetry = new Map<string, any>(); // Keep your existing telemetry ma
 
 // POST /mcp  — client-to-server (initialize + all subsequent JSON-RPC calls).
 // Stateless: a fresh server+transport per request, torn down on close.
-app.post("/mcp", async (req: Request, res: Response) => {
+app.post("/mcp", verifyAgentToken, async (req: Request, res: Response) => {
   try {
     const server = createMahaServer();
 
@@ -1204,14 +1223,14 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res:
     const severity = req.body.severity || "moderate";
     const activeNode = Array.from(activeSessions.values())[0];
 
-    if (activeNode) {
+    if (activeNode && canFireCircuitBreaker(activeNode)) {
       io.to(activeNode).emit("trigger_circuit_breaker", {
         severity: severity,
         protocol: `REST API Override: ${severity.toUpperCase()} systemic lock initiated.`
       });
       console.log(`[REST API]: Custom GPT triggered ${severity} circuit breaker for Node ${activeNode}.`);
     } else {
-      console.log(`[REST API]: Custom GPT attempted lockdown, but no active node was found.`);
+      console.log(`[REST API]: Custom GPT attempted lockdown, but no active node was found or node is in cooldown.`);
     }
 
     res.status(200).json({
@@ -1228,8 +1247,13 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req: Request, res:
 // ==========================================
 // LIVE TELEMETRY INGESTION
 // ==========================================
-app.post('/api/telemetry', async (req, res) => {
+app.post('/api/telemetry', verifyAgentToken, async (req, res) => {
   const { nodeId, telemetry } = req.body;
+
+  if (!nodeId || !telemetry || typeof telemetry.readinessScore !== "number") {
+    return res.status(400).send({ error: "Missing nodeId or telemetry.readinessScore" });
+  }
+
   console.log(`[GATEWAY] Telemetry received from Node ${nodeId}: Readiness ${telemetry.readinessScore}%`);
 
   nodeTelemetry.set(nodeId, telemetry);
@@ -1244,7 +1268,8 @@ app.post('/api/telemetry', async (req, res) => {
       const decision = JSON.parse(result.response.text());
       console.log(`[AGENTIC CORE DECISION]:`, decision);
 
-      if (decision.interventionRequired) {
+      // Only emit if the model asks for it AND the node isn't in cooldown.
+      if (decision.interventionRequired && canFireCircuitBreaker(nodeId)) {
         io.to(nodeId).emit('trigger_circuit_breaker', {
           severity: decision.severity,
           protocol: decision.kineticProtocol
