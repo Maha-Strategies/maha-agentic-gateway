@@ -12,6 +12,13 @@ import fs from 'fs';
 import { buildChatHandler } from './routes/maha_chat_route.js';
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { ListResourcesRequestSchema, ReadResourceRequestSchema, ListToolsRequestSchema, CallToolRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
+import { createClient } from '@supabase/supabase-js';
+// ==========================================
+// SESSION PERSISTENCE (Supabase)
+// Only session links are persisted — telemetry never touches the database.
+// That boundary keeps the Play Data Safety "processed ephemerally" answer true.
+// ==========================================
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 // Initialize Gemini with your API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // ==========================================
@@ -709,7 +716,9 @@ function createMahaServer() {
     // FIXED: Wrapped the logic back into the setRequestHandler
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (request.params.name === "defense_get_baseline") {
-            const activeNode = Array.from(nodeTelemetry.keys())[0];
+            // Read the node bound via the link handshake, not just whichever node
+            // appears first in the telemetry map.
+            const activeNode = Array.from(activeSessions.values())[0];
             if (activeNode && nodeTelemetry.has(activeNode)) {
                 const liveData = nodeTelemetry.get(activeNode);
                 const structuredResult = {
@@ -744,18 +753,40 @@ function createMahaServer() {
         }
         if (request.params.name === "defense_trigger_circuit_breaker") {
             const severity = request.params.arguments?.severity;
-            const activeNode = Array.from(nodeTelemetry.keys())[0];
-            if (activeNode && canFireCircuitBreaker(activeNode)) {
-                io.to(activeNode).emit("trigger_circuit_breaker", {
-                    severity: severity,
-                    protocol: `Agentic Core Override: ${severity.toUpperCase()} systemic lock initiated.`
-                });
+            const activeNode = Array.from(activeSessions.values())[0];
+            // Report honestly instead of claiming success when nothing fired —
+            // agents (and their humans) need to know whether the device was reached.
+            if (!activeNode) {
+                return {
+                    content: [{
+                            type: "text",
+                            text: "Circuit breaker NOT fired: no linked node. Complete the mahaos://join handshake first."
+                        }],
+                    structuredContent: { success: false, message: "No linked node." },
+                    isError: false
+                };
             }
+            if (!canFireCircuitBreaker(activeNode)) {
+                return {
+                    content: [{
+                            type: "text",
+                            text: `Circuit breaker NOT fired: Node ${activeNode} is in cooldown.`
+                        }],
+                    structuredContent: { success: false, message: "Node in cooldown." },
+                    isError: false
+                };
+            }
+            io.to(activeNode).emit("trigger_circuit_breaker", {
+                severity: severity,
+                protocol: `Agentic Core Override: ${severity.toUpperCase()} systemic lock initiated.`
+            });
             return {
                 content: [{
                         type: "text",
-                        text: `Circuit breaker activated successfully at ${severity} severity.`
-                    }]
+                        text: `Circuit breaker dispatched to Node ${activeNode} at ${severity} severity.`
+                    }],
+                structuredContent: { success: true, message: `Dispatched at ${severity}.` },
+                isError: false
             };
         }
         if (request.params.name === "publish_analyze_mswl") {
@@ -1029,6 +1060,20 @@ function createMahaServer() {
 // ==========================================
 // Map to hold active connections based on unique Session IDs
 const activeSessions = new Map(); // Keep your existing sessions map
+// Rehydrate session links on boot — dyno restarts no longer unlink users.
+(async () => {
+    try {
+        const { data, error } = await supabase.from('gateway_sessions').select('sid, node_id');
+        if (error)
+            throw error;
+        for (const row of data ?? [])
+            activeSessions.set(row.sid, row.node_id);
+        console.log(`[SESSIONS] hydrated ${data?.length ?? 0} link(s) from Supabase.`);
+    }
+    catch (err) {
+        console.error('[SESSIONS] hydrate failed:', err?.message ?? err);
+    }
+})();
 const nodeTelemetry = new Map(); // Keep your existing telemetry map
 // ==========================================
 // CIRCUIT-BREAKER THROTTLE (defense in depth)
@@ -1150,10 +1195,20 @@ app.post("/api/intervene", verifyAgentToken, express.json(), (req, res) => {
 // ==========================================
 // LIVE TELEMETRY INGESTION
 // ==========================================
-app.post('/api/telemetry', verifyAgentToken, async (req, res) => {
+// NOTE: no verifyAgentToken here. The shipped mobile clients send NO bearer
+// token with telemetry, so requiring the agent token 401s every production
+// device (this is why nodeTelemetry stayed empty and get_baseline reported
+// UNLINKED). Until a client update ships per-device credentials, the guard
+// below only accepts telemetry from nodes that completed the link handshake —
+// unlinked or unknown nodes are acknowledged but never stored or evaluated.
+app.post('/api/telemetry', async (req, res) => {
     const { nodeId, telemetry } = req.body;
     if (!nodeId || !telemetry || typeof telemetry.readinessScore !== "number") {
         return res.status(400).send({ error: "Missing nodeId or telemetry.readinessScore" });
+    }
+    const isLinked = Array.from(activeSessions.values()).includes(nodeId);
+    if (!isLinked) {
+        return res.status(202).send({ status: 'Ignored: node not linked' });
     }
     console.log(`[GATEWAY] Telemetry received from Node ${nodeId}: Readiness ${telemetry.readinessScore}%`);
     nodeTelemetry.set(nodeId, telemetry);
@@ -1187,12 +1242,19 @@ app.post('/api/chat', verifyAgentToken, buildChatHandler(io));
 // ==========================================
 // SESSION LOCKING ENDPOINT
 // ==========================================
-app.post("/api/link-session", express.json(), (req, res) => {
-    const { sid, nodeId } = req.body;
+const linkSessionHandler = (req, res) => {
+    const { sid, nodeId } = req.body || {};
     if (!sid || !nodeId) {
         return res.status(400).json({ error: "Missing sid or nodeId" });
     }
     activeSessions.set(sid, nodeId);
+    supabase
+        .from('gateway_sessions')
+        .upsert({ sid, node_id: nodeId })
+        .then(({ error }) => {
+        if (error)
+            console.error('[SESSIONS] persist failed:', error.message);
+    });
     console.log(`[LINK ESTABLISHED]: Session ${sid} is securely bound to Node ${nodeId}`);
     io.emit("session_linked", { sid, nodeId });
     res.status(200).json({
@@ -1200,7 +1262,14 @@ app.post("/api/link-session", express.json(), (req, res) => {
         message: "Sovereign Link locked successfully.",
         node: nodeId
     });
-});
+};
+app.post("/api/link-session", linkSessionHandler);
+// COMPAT ALIAS — shipped mobile builds POST the bare root URL during the
+// native deep-link handshake (App.tsx appUrlOpen path), not /api/link-session.
+// Without this alias the handshake 404s and the app shows
+// "Handshake intercepted, but backend rejected the lock."
+// Remove once a client update points the native handler at /api/link-session.
+app.post("/", linkSessionHandler);
 // ==========================================
 // DEEP LINK REDIRECTOR (/join)
 // ==========================================
