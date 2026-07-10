@@ -18,6 +18,17 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { createClient } from '@supabase/supabase-js';
+
+// ==========================================
+// SESSION PERSISTENCE (Supabase)
+// Only session links are persisted — telemetry never touches the database.
+// That boundary keeps the Play Data Safety "processed ephemerally" answer true.
+// ==========================================
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!,
+);
 
 // Initialize Gemini with your API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ||'');
@@ -1143,6 +1154,18 @@ function createMahaServer() {
 // Map to hold active connections based on unique Session IDs
 
 const activeSessions = new Map<string, string>(); // Keep your existing sessions map
+
+// Rehydrate session links on boot — dyno restarts no longer unlink users.
+(async () => {
+  try {
+    const { data, error } = await supabase.from('gateway_sessions').select('sid, node_id');
+    if (error) throw error;
+    for (const row of data ?? []) activeSessions.set(row.sid, row.node_id);
+    console.log(`[SESSIONS] hydrated ${data?.length ?? 0} link(s) from Supabase.`);
+  } catch (err: any) {
+    console.error('[SESSIONS] hydrate failed:', err?.message ?? err);
+  }
+})();
 const nodeTelemetry = new Map<string, any>(); // Keep your existing telemetry map
 
 // ==========================================
@@ -1340,6 +1363,12 @@ const linkSessionHandler = (req: Request, res: Response) => {
   }
 
   activeSessions.set(sid, nodeId);
+  supabase
+    .from('gateway_sessions')
+    .upsert({ sid, node_id: nodeId })
+    .then(({ error }) => {
+      if (error) console.error('[SESSIONS] persist failed:', error.message);
+    });
   console.log(`[LINK ESTABLISHED]: Session ${sid} is securely bound to Node ${nodeId}`);
   io.emit("session_linked", { sid, nodeId });
 
